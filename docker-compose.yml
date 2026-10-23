@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: citelock-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: citelock
+      POSTGRES_PASSWORD: citelock_dev_password
+      POSTGRES_DB: citelock
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citelock -d citelock"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: citelock-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://citelock:citelock_dev_password@postgres:5432/citelock
+      PORT: "8000"
+      STORAGE_PROVIDER: none
+      LLM_PROVIDER: openai
+      EMBEDDING_PROVIDER: openai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+volumes:
+  postgres_data:

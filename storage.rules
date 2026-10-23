@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Private bucket: CiteLock enforces server-side access control.
+// All reads and writes must pass through the FastAPI backend via Firebase Admin SDK.
+// Direct client access is denied completely.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "citelock-backend"
+version = "0.1.0"
+description = "Backend API, RAG pipeline, and verification auditor for CiteLock"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13.1",
+    "pydantic-settings>=2.3.0",
+    "psycopg[binary]>=3.1.19",
+    "pgvector>=0.2.5",
+    "firebase-admin>=6.5.0",
+    "pymupdf>=1.24.5",
+    "python-docx>=1.1.2",
+    "pandas>=2.2.2",
+    "scikit-learn>=1.5.0",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.7",
+    "httpx>=0.27.0",
+    "ruff>=0.4.7",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "evaluation*"]

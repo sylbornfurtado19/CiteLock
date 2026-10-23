@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: citelock-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: firebase
+      - key: LLM_PROVIDER
+        value: openai
+      - key: LLM_API_KEY
+        sync: false
+      - key: EMBEDDING_PROVIDER
+        value: openai
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: MAX_CORRECTION_RETRIES
+        value: "3"
+      - key: CORS_ORIGINS
+        sync: false
