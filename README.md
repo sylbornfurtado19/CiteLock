@@ -2,7 +2,9 @@
 
 Self-Correcting RAG and Hallucination Auditor.
 
-CiteLock is an enterprise-grade retrieval-augmented generation (RAG) platform that audits AI-generated answers against trusted source documents in real time. It decomposes draft answers into verifiable atomic claims, scores each claim with rigorous provenance tracking and structured verification judges, and self-corrects unsupported or contradictory statements before returning the answer to the user.
+Status: Scaffold stage. No evaluation results yet.
+
+CiteLock is a retrieval-augmented generation (RAG) platform that audits AI-generated answers against trusted source documents. It decomposes draft answers into verifiable atomic claims, scores each claim with provenance tracking and structured verification judges, and self-corrects unsupported or contradictory statements before returning the answer to the user.
 
 ---
 

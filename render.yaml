@@ -1,13 +1,12 @@
 services:
   - type: web
     name: citelock-backend
-    env: docker
+    runtime: docker
     dockerfilePath: backend/Dockerfile
     dockerContext: backend
     plan: free
-    region: oregon
+    region: singapore
     healthCheckPath: /health
-    preDeployCommand: alembic upgrade head
     envVars:
       - key: DATABASE_URL
         sync: false

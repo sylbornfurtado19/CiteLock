@@ -21,5 +21,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Run uvicorn on $PORT (set dynamically by Render or local env)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run database migrations and uvicorn on $PORT (set dynamically by Render or local env)
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
