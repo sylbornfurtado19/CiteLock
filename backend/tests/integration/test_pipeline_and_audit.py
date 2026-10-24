@@ -280,3 +280,129 @@ def test_missing_token_unauthorized_in_production(workspace_a, monkeypatch):
     res = unauth_client.get(f"/api/v1/workspaces/{workspace_a.id}/documents")
     assert res.status_code == 401
     assert "credentials required" in res.json()["detail"].lower()
+
+
+def test_full_lifecycle_e2e_integration(client, workspace_a, workspace_b, user_b, mock_storage, mock_embeddings, monkeypatch, db):
+    """
+    Comprehensive End-to-End lifecycle test:
+    1. Upload & synchronously index reference document.
+    2. Query indexed document.
+    3. Trigger self-correction on hallucinated draft claim.
+    4. Verify final atomic claims and evidence references resolve to real chunk IDs.
+    5. Confirm database persistence of query, answer, claims, and evidence links.
+    6. Fetch and export the audit record, verifying payload fidelity.
+    7. Verify workspace analytics reflect the stored query and verification stats.
+    8. Confirm tenant isolation: Workspace B cannot view, audit, export, or leak records from Workspace A.
+    """
+    # 1. Upload & Index document
+    pdf_bytes = create_sample_pdf("CiteLock delivers 99.8% precision on factual claim auditing.")
+    upload_res = client.post(
+        f"/api/v1/workspaces/{workspace_a.id}/documents/upload?sync=true",
+        files={"file": ("citelock_whitepaper.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    doc_payload = upload_res.json()
+    doc_id = UUID(doc_payload["id"])
+    assert doc_payload["status"] == "indexed"
+
+    chunks = db.query(Chunk).filter(Chunk.document_id == doc_id).all()
+    assert len(chunks) >= 1
+    valid_chunk_id = chunks[0].id
+
+    # 2 & 3. Query document and trigger correction
+    class LifecycleLLM(MockLLMProvider):
+        def complete(self, prompt, system_prompt=None, temperature=0.0):
+            if "Critiques:" in prompt:
+                # Correction revision: accurately grounds statement
+                return "CiteLock delivers 99.8% precision on factual claim auditing based on benchmarks."
+            if "Passages:" in prompt and "User Query:" in prompt:
+                # Initial draft: intentionally introduces a contradicted claim
+                return "CiteLock delivers 99.8% precision. It contains a contradicted statement that must be corrected."
+            return super().complete(prompt, system_prompt, temperature)
+
+    monkeypatch.setattr(providers_base, "get_llm_provider", lambda: LifecycleLLM())
+
+    query_payload = {"prompt": "What precision does CiteLock deliver?", "top_k": 3}
+    query_res = client.post(
+        f"/api/v1/workspaces/{workspace_a.id}/queries",
+        json=query_payload,
+    )
+    assert query_res.status_code == 201
+    q_data = query_res.json()
+
+    # 4. Verify returned atomic claims & evidence references
+    answer_data = q_data["answer"]
+    answer_id = UUID(answer_data["id"])
+    query_id = UUID(q_data["query_id"])
+
+    assert answer_data["correction_rounds"] >= 1
+    assert "contradicted statement that must be corrected" not in answer_data["final_text"]
+    assert "99.8% precision" in answer_data["final_text"]
+    assert len(answer_data["claims"]) >= 1
+
+    for claim_item in answer_data["claims"]:
+        if claim_item["verdict"] == "supported":
+            assert len(claim_item["evidence_references"]) >= 1
+            # Check evidence reference resolves to genuine chunk ID
+            for ev_ref in claim_item["evidence_references"]:
+                assert str(valid_chunk_id) in str(ev_ref)
+
+    # 5. Confirm persistence in DB
+    db_query = db.query(Query).filter(Query.id == query_id).first()
+    assert db_query is not None
+    assert db_query.status == "completed"
+
+    db_answer = db.query(Answer).filter(Answer.id == answer_id).first()
+    assert db_answer is not None
+    assert db_answer.correction_rounds >= 1
+
+    db_claims = db.query(Claim).filter(Claim.answer_id == answer_id).all()
+    assert len(db_claims) == len(answer_data["claims"])
+
+    db_links = db.query(EvidenceLink).filter(EvidenceLink.chunk_id == valid_chunk_id).all()
+    assert len(db_links) >= 1
+
+    # 6. Fetch audit record and export it
+    audit_res = client.get(f"/api/v1/workspaces/{workspace_a.id}/audits/{answer_id}")
+    assert audit_res.status_code == 200
+    audit_json = audit_res.json()
+    assert audit_json["answer_id"] == str(answer_id)
+    assert audit_json["prompt"] == query_payload["prompt"]
+    assert len(audit_json["claims"]) == len(answer_data["claims"])
+
+    export_res = client.get(f"/api/v1/workspaces/{workspace_a.id}/audits/{answer_id}/export")
+    assert export_res.status_code == 200
+    export_json = export_res.json()
+    assert export_json["version"] == "1.0"
+    assert export_json["answer_id"] == str(answer_id)
+    assert len(export_json["claims"]) >= 1
+
+    # 7. Verify analytics reflect stored data
+    analytics_res = client.get(f"/api/v1/workspaces/{workspace_a.id}/analytics")
+    assert analytics_res.status_code == 200
+    analytics_data = analytics_res.json()
+    assert analytics_data["total_queries"] >= 1
+    assert analytics_data["total_documents"] >= 1
+    assert analytics_data["verdict_distribution"]["supported"] >= 1
+    assert analytics_data["avg_latency_ms"] >= 0.0
+
+    # 8. Cross-workspace isolation
+    # Workspace B cannot view audit
+    assert client.get(f"/api/v1/workspaces/{workspace_b.id}/audits/{answer_id}").status_code == 404
+    # Workspace B cannot export audit
+    assert client.get(f"/api/v1/workspaces/{workspace_b.id}/audits/{answer_id}/export").status_code == 404
+    # Workspace B cannot access document
+    assert client.get(f"/api/v1/workspaces/{workspace_b.id}/documents/{doc_id}").status_code == 404
+    # Workspace B endpoints return 404 to user A
+    assert client.get(f"/api/v1/workspaces/{workspace_b.id}/analytics").status_code == 404
+
+    # When user B accesses their own workspace, it reflects 0 queries and 0 documents
+    from app.api import deps
+    from fastapi.testclient import TestClient
+    from app.main import app
+    app.dependency_overrides[deps.get_current_user] = lambda: user_b
+    client_b = TestClient(app)
+
+    b_analytics = client_b.get(f"/api/v1/workspaces/{workspace_b.id}/analytics").json()
+    assert b_analytics["total_queries"] == 0
+    assert b_analytics["total_documents"] == 0

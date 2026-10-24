@@ -6,6 +6,11 @@ import pytest
 from tests.conftest import create_sample_pdf, create_scanned_pdf, create_sample_docx
 from app.db.models.documents import Document
 from app.db.models.chunks import Chunk
+from app.db.models.queries import Query
+from app.db.models.answers import Answer
+from app.db.models.claims import Claim
+from app.db.models.evidence_links import EvidenceLink
+from app.api.routes.documents import process_document_background_task
 from app.services.ingestion.indexer import index_document
 from app.providers.base import MockEmbeddingProvider
 import app.providers.base as providers_base
@@ -205,3 +210,110 @@ def test_delete_document_removes_from_storage_and_db(client, workspace_a, mock_s
     assert storage_path not in mock_storage._storage
     assert db.query(Chunk).filter(Chunk.document_id == UUID(doc_id)).count() == 0
     assert db.query(Document).filter(Document.id == UUID(doc_id)).first() is None
+
+
+def test_delete_document_cascades_chunks_and_evidence_links(client, workspace_a, mock_storage, mock_embeddings, db):
+    """Confirm that document deletion handles associated chunks and related evidence links."""
+    pdf_bytes = create_sample_pdf("Document with linked evidence records for cascade testing.")
+    upload_res = client.post(
+        f"/api/v1/workspaces/{workspace_a.id}/documents/upload?sync=true",
+        files={"file": ("evidence_doc.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    doc_id = UUID(upload_res.json()["id"])
+
+    # Find the chunk created
+    chunk = db.query(Chunk).filter(Chunk.document_id == doc_id).first()
+    assert chunk is not None
+
+    # Create a query, answer, claim, and evidence link pointing to chunk
+    query = Query(workspace_id=workspace_a.id, prompt="Test prompt", status="completed")
+    db.add(query)
+    db.commit()
+
+    answer = Answer(query_id=query.id, draft_text="Draft", final_text="Final")
+    db.add(answer)
+    db.commit()
+
+    claim = Claim(answer_id=answer.id, claim_index=0, claim_text="Claim text", verdict="supported")
+    db.add(claim)
+    db.commit()
+
+    link = EvidenceLink(
+        claim_id=claim.id,
+        chunk_id=chunk.id,
+        exact_quote="Document with linked evidence records.",
+        start_char_offset=0,
+        end_char_offset=38,
+        relevance_score=1.0,
+    )
+    db.add(link)
+    db.commit()
+
+    # Verify link exists
+    assert db.query(EvidenceLink).filter(EvidenceLink.chunk_id == chunk.id).count() == 1
+
+    # Delete the document
+    del_res = client.delete(f"/api/v1/workspaces/{workspace_a.id}/documents/{doc_id}")
+    assert del_res.status_code == 204
+
+    # Verify document and chunks are deleted
+    assert db.query(Document).filter(Document.id == doc_id).first() is None
+    assert db.query(Chunk).filter(Chunk.document_id == doc_id).count() == 0
+
+    # Verify evidence link referencing the deleted chunk was cascade-deleted
+    assert db.query(EvidenceLink).filter(EvidenceLink.chunk_id == chunk.id).count() == 0
+
+    # Verify query and answer and claim records are preserved
+    assert db.query(Query).filter(Query.id == query.id).first() is not None
+    assert db.query(Answer).filter(Answer.id == answer.id).first() is not None
+    assert db.query(Claim).filter(Claim.id == claim.id).first() is not None
+
+
+def test_background_processing_failure_transitions_to_failed_with_error(db, workspace_a, monkeypatch):
+    """Verify background task catches fatal errors, transitions doc to 'failed', and records error_message."""
+    import app.api.routes.documents as doc_routes
+
+    # Create document in 'uploaded' state
+    doc_id = uuid4()
+    doc = Document(
+        id=doc_id,
+        workspace_id=workspace_a.id,
+        filename="fatal_error.pdf",
+        storage_path=f"workspaces/{workspace_a.id}/fatal_error.pdf",
+        checksum="chk_fatal",
+        status="uploaded",
+        file_size_bytes=100,
+        mime_type="application/pdf",
+    )
+    db.add(doc)
+    db.commit()
+
+    # Simulate unexpected runtime crash during indexing
+    def crashing_index_document(database, did, content):
+        raise RuntimeError("Unexpected parser memory segmentation fault simulation")
+
+    monkeypatch.setattr(doc_routes, "index_document", crashing_index_document)
+
+    # Execute background task
+    process_document_background_task(doc_id, b"fake_content")
+
+    # Re-query doc from DB
+    updated_doc = db.query(Document).filter(Document.id == doc_id).first()
+    assert updated_doc is not None
+    assert updated_doc.status == "failed"
+    assert "Background processing error" in updated_doc.error_message
+    assert "segmentation fault simulation" in updated_doc.error_message
+
+
+def test_corrupted_pdf_upload_marks_failed(client, workspace_a):
+    """Test that a file with PDF extension but corrupted non-PDF binary data fails gracefully."""
+    corrupted_bytes = b"%PDF-1.4 completely truncated garbage bytes \x00\x01\x02"
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_a.id}/documents/upload?sync=true",
+        files={"file": ("corrupted.pdf", corrupted_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "failed"
+    assert data["error_message"] is not None

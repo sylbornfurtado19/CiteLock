@@ -5,14 +5,17 @@ from typing import List, Dict, Any
 
 
 def _figure_type(raw: str) -> str:
-    """Classify numeric figure into currency, percentage, scaled amount, or count."""
+    """Classify numeric figure into currency, percentage, year/date, scaled amount, or count."""
     r = raw.lower().strip()
     if "$" in r or "€" in r or "£" in r or "usd" in r:
         return "currency"
     if "%" in r or "percent" in r:
         return "percentage"
-    if any(m in r for m in ["million", "billion", "thousand", "m", "b", "k"]):
+    if any(m in r for m in ["million", "billion", "thousand"]):
         return "scaled_amount"
+    cleaned_num = re.sub(r"[^\d]", "", r)
+    if len(cleaned_num) == 4 and (cleaned_num.startswith("19") or cleaned_num.startswith("20")):
+        return "year"
     return "count"
 
 

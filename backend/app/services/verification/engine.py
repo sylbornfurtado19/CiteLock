@@ -1,13 +1,14 @@
-"""Claim verification orchestrator coordinating structured judge, numeric checks, provenance, and scoring."""
-
+import logging
 import uuid
 from typing import List, Dict, Any
 
 from app.services.verification.judge import evaluate_claim_with_judge, VALID_VERDICTS
 from app.services.verification.numeric import verify_numeric_precision
-from app.services.verification.provenance import trace_claim_provenance
+from app.services.verification.provenance import trace_claim_provenance, ProvenanceError
 from app.services.verification.scoring import compute_verification_metrics
 import app.providers.base as providers_base
+
+logger = logging.getLogger(__name__)
 
 
 def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -31,7 +32,14 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
 
         judge_res = evaluate_claim_with_judge(claim_text, passage_texts)
         numeric_res = verify_numeric_precision(claim_text, passage_texts)
-        raw_provenance = trace_claim_provenance(claim_text, retrieved_passages)
+
+        provenance_error = None
+        try:
+            raw_provenance = trace_claim_provenance(claim_text, retrieved_passages)
+        except Exception as e:
+            logger.error(f"Provenance tracking error for claim {claim_id}: {e}", exc_info=True)
+            provenance_error = str(e)
+            raw_provenance = []
 
         # Validate evidence IDs: filter out any chunk ID that does not exist in retrieved_passages
         valid_provenance = [
@@ -78,6 +86,9 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
                 confidence = 0.0
                 rationale = f"Claim lacks direct textual provenance in retrieved passages. {rationale}".strip()
 
+        if provenance_error:
+            rationale = f"[Provenance Error: {provenance_error}] {rationale}".strip()
+
         evidence_references = [link["chunk_id"] for link in valid_provenance if link.get("chunk_id")]
         source_excerpts = [link["exact_quote"] for link in valid_provenance if link.get("exact_quote")]
 
@@ -98,6 +109,7 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
             "extracted_numbers": numeric_res.get("extracted_numbers", []),
             "judge_model": provider_name,
             "has_valid_provenance": len(valid_provenance) > 0,
+            "provenance_error": provenance_error,
             "is_fallback_claim": claim.get("is_fallback", False),
         }
 

@@ -43,13 +43,27 @@ def db():
     """Transactional database session fixture rolled back after each test."""
     connection = test_engine.connect()
     transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    session = TestingSessionLocal(bind=connection, join_transaction_mode="create_savepoint")
 
     yield session
 
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
+
+
+@pytest.fixture(autouse=True)
+def override_session_local(db, monkeypatch):
+    """Ensure background tasks or standalone sessionmaker calls bind to the current test connection."""
+    import app.db.session
+    import app.api.routes.documents
+
+    connection = db.get_bind()
+    session_factory = lambda: TestingSessionLocal(bind=connection, join_transaction_mode="create_savepoint")
+
+    monkeypatch.setattr(app.db.session, "SessionLocal", session_factory)
+    monkeypatch.setattr(app.api.routes.documents, "SessionLocal", session_factory)
 
 
 @pytest.fixture(autouse=True)
@@ -79,6 +93,9 @@ def mock_llm(monkeypatch):
 @pytest.fixture
 def user_a(db):
     """Test user A fixture."""
+    existing = db.query(User).filter(User.firebase_uid == "firebase_user_a").first()
+    if existing:
+        return existing
     user = User(
         id=uuid.uuid4(),
         firebase_uid="firebase_user_a",
@@ -93,6 +110,9 @@ def user_a(db):
 @pytest.fixture
 def user_b(db):
     """Test user B fixture."""
+    existing = db.query(User).filter(User.firebase_uid == "firebase_user_b").first()
+    if existing:
+        return existing
     user = User(
         id=uuid.uuid4(),
         firebase_uid="firebase_user_b",

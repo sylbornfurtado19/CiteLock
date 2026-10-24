@@ -18,14 +18,26 @@ from app.services.ingestion.indexer import index_document
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["Documents"])
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def process_document_background_task(document_id: UUID, file_bytes: bytes) -> None:
-    """Lightweight background task to process and index document asynchronously."""
+    """Lightweight background task to process and index document asynchronously with structured failure tracking."""
     db: Session = SessionLocal()
     try:
         index_document(db, document_id, file_bytes)
     except Exception as e:
-        # Unexpected fatal errors are logged and recorded on the document in index_document
-        pass
+        logger.exception("Fatal unhandled exception in background processing for document %s: %s", document_id, e)
+        try:
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            if doc:
+                doc.status = "failed"
+                doc.error_message = f"Background processing error: {str(e)[:250]}"
+                db.commit()
+        except Exception:
+            db.rollback()
     finally:
         db.close()
 

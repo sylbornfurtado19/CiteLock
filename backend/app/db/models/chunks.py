@@ -25,6 +25,6 @@ class Chunk(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     document = relationship("Document", back_populates="chunks")
-    evidence_links = relationship("EvidenceLink", back_populates="chunk")
+    evidence_links = relationship("EvidenceLink", back_populates="chunk", cascade="all, delete-orphan")
 
     # TODO: Add HNSW index configuration in migration and support variable embedding dimensions

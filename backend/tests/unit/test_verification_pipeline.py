@@ -219,3 +219,112 @@ def test_compute_verification_metrics():
     assert metrics["supported_count"] == 2
     assert metrics["contradicted_count"] == 1
     assert metrics["unsupported_count"] == 1
+
+
+def test_numeric_currency_percentage_and_unrelated_dates():
+    """Verify numeric checks distinguish percentages, currencies, dates, and units without false contradictions."""
+    # 1. Matching currency: $42.5M matches $42.5 million
+    res_curr = verify_numeric_precision(
+        "Expenditures reached $42.5 million.",
+        ["Financial records indicate expenditures reached $42.5M in FY2025."]
+    )
+    assert res_curr["passed"] is True
+    assert res_curr["has_contradiction"] is False
+
+    # 2. Matching percentage: 15% matches 15 percent
+    res_pct = verify_numeric_precision(
+        "Customer retention grew by 15 percent.",
+        ["Retention metrics showed 15% growth across enterprise clients."]
+    )
+    assert res_pct["passed"] is True
+    assert res_pct["has_contradiction"] is False
+
+    # 3. Unrelated numbers of different types do not generate false contradictions
+    # Claim mentions year 2024 and 500 nodes; evidence confirms 2024 but doesn't mention nodes
+    res_mixed = verify_numeric_precision(
+        "Deployed in 2024 with 500 worker nodes.",
+        ["The network was deployed in 2024."]
+    )
+    # 500 is unverified, but NOT contradicted because evidence doesn't assert a conflicting count
+    assert res_mixed["has_contradiction"] is False
+    assert res_mixed["passed"] is False  # not passed because 500 is unverified
+
+    # 4. Genuine numerical conflict flags contradiction
+    res_conflict = verify_numeric_precision(
+        "Gross margin reached 28%.",
+        ["Gross margin reached 18% during the period."]
+    )
+    assert res_conflict["has_contradiction"] is True
+    assert res_conflict["passed"] is False
+
+
+def test_malformed_judge_provider_response_cannot_become_supported(monkeypatch):
+    """Ensure malformed or non-compliant provider responses default to unsupported, never supported."""
+    class BrokenJudgeLLM(MockLLMProvider):
+        def complete(self, prompt, system_prompt=None, temperature=0.0):
+            return "GARBAGE NOT JSON {broken{"
+
+        def structured_judge(self, claim, evidence_passages):
+            # Simulate corrupted dict returned by third party adapter
+            return {"verdict": "INVALID_VERDICT_VALUE", "nonsense": 123}
+
+    monkeypatch.setattr(providers_base, "get_llm_provider", lambda: BrokenJudgeLLM())
+
+    claims = [{"claim_index": 0, "claim_text": "Cryptographic security is verified."}]
+    passages = [{"id": "c1", "content": "Cryptographic security is verified."}]
+
+    res = verify_claims(claims, passages)
+    c = res["claims"][0]
+    assert c["verdict"] in ["unsupported", "insufficient_evidence"]
+    assert c["verdict"] != "supported"
+
+
+def test_corrections_accepted_only_after_successful_reverification(monkeypatch):
+    """Ensure correction controller re-verifies and terminates on round 2 only after valid revision."""
+    call_count = {"revisions": 0}
+
+    class MultiRoundLLM(MockLLMProvider):
+        def complete(self, prompt, system_prompt=None, temperature=0.0):
+            if "Critiques:" in prompt:
+                call_count["revisions"] += 1
+                if call_count["revisions"] == 1:
+                    # Round 1 revision: still contains a false assertion
+                    return "CiteLock achieves 99.8% precision. It still has an unverified false assertion."
+                # Round 2 revision: fully grounded
+                return "CiteLock achieves 99.8% precision."
+            if "Passages:" in prompt and "User Query:" in prompt:
+                return "CiteLock achieves 99.8% precision. Initial draft error."
+            return super().complete(prompt, system_prompt, temperature)
+
+        def structured_judge(self, claim, evidence_passages):
+            if "false assertion" in claim.lower() or "initial draft error" in claim.lower():
+                return {
+                    "verdict": "contradicted",
+                    "confidence_score": 0.95,
+                    "rationale": "Evidence does not substantiate false assertion.",
+                    "supporting_quotes": [],
+                }
+            return {
+                "verdict": "supported",
+                "confidence_score": 0.95,
+                "rationale": "Accurately grounded in evidence.",
+                "supporting_quotes": ["CiteLock achieves 99.8% precision."],
+            }
+
+    monkeypatch.setattr(providers_base, "get_llm_provider", lambda: MultiRoundLLM())
+
+    passages = [{"id": "c1", "content": "CiteLock achieves 99.8% precision."}]
+    initial_claims = [
+        {"claim_index": 0, "claim_text": "CiteLock achieves 99.8% precision.", "verdict": "supported"},
+        {"claim_index": 1, "claim_text": "Initial draft error.", "verdict": "contradicted"},
+    ]
+
+    final_text, rounds, is_abstained, final_claims, history = execute_correction_loop(
+        "Query", "Initial draft error.", initial_claims, passages, max_retries=3
+    )
+
+    # Must have taken exactly 2 revision rounds to reach full support
+    assert rounds == 2
+    assert is_abstained is False
+    assert "false assertion" not in final_text
+    assert all(c["verdict"] == "supported" for c in final_claims)

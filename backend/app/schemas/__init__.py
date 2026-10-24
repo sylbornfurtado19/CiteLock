@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class Verdict(str, Enum):
@@ -118,6 +118,14 @@ class ClaimRead(BaseModel):
     evidence_links: List[EvidenceLinkRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def populate_evidence_references(self) -> "ClaimRead":
+        if not self.evidence_references and self.evidence_links:
+            self.evidence_references = [link.chunk_id for link in self.evidence_links]
+        if not self.source_excerpts and self.evidence_links:
+            self.source_excerpts = [link.exact_quote for link in self.evidence_links if link.exact_quote]
+        return self
 
 
 # Query & Answer Schemas
