@@ -12,6 +12,12 @@ This document outlines key technical trade-offs, infrastructure constraints, and
   All embedding generation (`text-embedding-3-small`, etc.) and LLM evaluations are routed via lightweight HTTP API calls to external providers (e.g. OpenAI, Google Gemini).
 - **Lightweight Document Parsing**:
   PDF and DOCX extraction uses `PyMuPDF` (fitz) and `python-docx` streaming rather than heavy optical character recognition (OCR) or deep learning parser pipelines.
+- **Scanned PDF Handling & OCR Policy**:
+  Scanned PDFs without embedded text layers are detected and marked as `failed` with an explicit reason (`Scanned PDF detected: page contains raster images but no digital text layer. OCR is currently unsupported...`). Silent reporting of success for empty text is strictly forbidden.
+- **File Format Scope**:
+  Phase 1 supports PDF, DOCX, and TXT files up to `MAX_FILE_SIZE_MB` (default: 25MB). Unsupported formats (e.g., audio, raw images, spreadsheets, presentations) are rejected at the validation layer.
+- **Background Processing Model**:
+  Ingestion operates asynchronously via FastAPI `BackgroundTasks` to avoid adding heavy task queues (e.g., Celery, Redis) to the 512MB RAM environment. Tasks process in-process; worker restarts during an in-flight upload will leave the document in `processing` state, which can be retried via `POST /workspaces/{id}/documents/{id}/reprocess`.
 
 ---
 

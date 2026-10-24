@@ -14,26 +14,46 @@ from app.services.audit.exporter import export_answer_audit_json
 router = APIRouter(prefix="/workspaces/{workspace_id}/audits", tags=["Audits"])
 
 
+from app.db.models.queries import Query
+from app.db.models.claims import Claim
+
+
 @router.get("/{answer_id}", response_model=AnswerAuditResponse)
 def get_answer_audit(
     answer_id: UUID,
     workspace: Workspace = Depends(get_workspace_scoped),
     db: Session = Depends(get_db),
 ):
-    """Retrieve full verification audit details for an answer."""
-    # TODO: Fetch related claims and evidence links from database
-    return {
-        "answer_id": answer_id,
-        "query_id": answer_id,
-        "prompt": "Placeholder query prompt",
-        "draft_text": "Placeholder draft text",
-        "final_text": "Placeholder verified final text",
-        "correction_rounds": 1,
-        "is_abstained": False,
-        "claims": [],
-        "hallucination_rate": 0.0,
-        "created_at": "2026-10-23T12:00:00Z",
-    }
+    """Retrieve full verification audit details for an answer strictly scoped to workspace."""
+    answer = (
+        db.query(Answer)
+        .join(Query, Answer.query_id == Query.id)
+        .filter(Answer.id == answer_id, Query.workspace_id == workspace.id)
+        .first()
+    )
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer audit record not found in this workspace",
+        )
+
+    claims = db.query(Claim).filter(Claim.answer_id == answer.id).order_by(Claim.claim_index.asc()).all()
+    total_claims = len(claims)
+    hallucinated = sum(1 for c in claims if c.verdict in ["unsupported", "contradicted"])
+    hallucination_rate = round(hallucinated / total_claims, 4) if total_claims > 0 else 0.0
+
+    return AnswerAuditResponse(
+        answer_id=answer.id,
+        query_id=answer.query_id,
+        prompt=answer.query.prompt,
+        draft_text=answer.draft_text,
+        final_text=answer.final_text,
+        correction_rounds=answer.correction_rounds,
+        is_abstained=answer.is_abstained,
+        claims=claims,
+        hallucination_rate=hallucination_rate,
+        created_at=answer.created_at,
+    )
 
 
 @router.get("/{answer_id}/export")
@@ -43,5 +63,4 @@ def export_audit(
     db: Session = Depends(get_db),
 ):
     """Export standardized audit report in JSON format."""
-    # TODO: Add signature header to verify audit authenticity
-    return export_answer_audit_json(db, answer_id)
+    return export_answer_audit_json(db, answer_id, workspace_id=workspace.id)

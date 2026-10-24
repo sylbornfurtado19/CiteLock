@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
 from app.db.session import Base
+import app.db.models  # Ensure all model tables are registered in Base.metadata
 
 config = context.config
 

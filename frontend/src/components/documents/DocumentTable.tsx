@@ -44,7 +44,15 @@ export function DocumentTable({
                 <span className="truncate max-w-xs">{doc.filename}</span>
               </td>
               <td className="px-4 py-3.5">
-                <Badge variant={doc.status === "indexed" ? "success" : "warning"}>
+                <Badge
+                  variant={
+                    doc.status === "indexed"
+                      ? "success"
+                      : doc.status === "failed" || doc.status === "error"
+                      ? "danger"
+                      : "warning"
+                  }
+                >
                   {doc.status}
                 </Badge>
               </td>

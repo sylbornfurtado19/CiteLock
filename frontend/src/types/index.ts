@@ -23,7 +23,7 @@ export interface Document {
   filename: string;
   storage_path: string;
   checksum: string;
-  status: "pending" | "parsing" | "indexed" | "error";
+  status: "uploaded" | "processing" | "indexed" | "failed" | "pending" | "error";
   file_size_bytes: number;
   mime_type: string;
   created_at: string;

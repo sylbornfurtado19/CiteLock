@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     embedding_provider: str = "openai"
     embedding_api_key: str | None = None
     max_correction_retries: int = 3
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+    max_file_size_mb: int = 25
     cors_origins: str = "http://localhost:3000,https://citelock.vercel.app"
     port: int = 8000
+    environment: str = "production"
+    allow_dev_auth: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

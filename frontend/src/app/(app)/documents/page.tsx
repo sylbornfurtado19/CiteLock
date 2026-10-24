@@ -1,55 +1,76 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { UploadDropzone } from "@/components/documents/UploadDropzone";
 import { DocumentTable } from "@/components/documents/DocumentTable";
 import { SourceViewer } from "@/components/documents/SourceViewer";
 import { Document } from "@/types";
+import { apiFetch } from "@/lib/api";
+import { Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DocumentsPage() {
   const workspaceId = "default-workspace-001";
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [documents, setDocuments] = useState<Document[]>([
-    {
-      id: "doc-1",
-      workspace_id: workspaceId,
-      filename: "financial_report_q3_2024.pdf",
-      storage_path: `workspaces/${workspaceId}/documents/doc-1/financial_report_q3_2024.pdf`,
-      checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      status: "indexed",
-      file_size_bytes: 2450000,
-      mime_type: "application/pdf",
-      created_at: "2026-10-23T10:00:00Z",
-    },
-    {
-      id: "doc-2",
-      workspace_id: workspaceId,
-      filename: "ai_model_technical_spec.docx",
-      storage_path: `workspaces/${workspaceId}/documents/doc-2/ai_model_technical_spec.docx`,
-      checksum: "8743b52063cd84097a65d1633f5c74f5",
-      status: "indexed",
-      file_size_bytes: 1120000,
-      mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      created_at: "2026-10-23T11:15:00Z",
-    },
-  ]);
-
-  const handleUploadSuccess = (newDoc: Document) => {
-    setDocuments((prev) => [newDoc, ...prev]);
+  const loadDocuments = async () => {
+    try {
+      setLoading(true);
+      const docs = await apiFetch<Document[]>(
+        `/api/v1/workspaces/${workspaceId}/documents`
+      );
+      setDocuments(docs);
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (docId: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== docId));
+  useEffect(() => {
+    loadDocuments();
+  }, [workspaceId]);
+
+  const handleUploadSuccess = (newDoc: Document) => {
+    setDocuments((prev) => [newDoc, ...prev.filter((d) => d.id !== newDoc.id)]);
+  };
+
+  const handleDelete = async (docId: string) => {
+    try {
+      await apiFetch(`/api/v1/workspaces/${workspaceId}/documents/${docId}`, {
+        method: "DELETE",
+      });
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+    }
   };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">Document Vault</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Upload and index reference documents. Files are stored in private Firebase Storage and embedded into Neon pgvector.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Document Vault</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Upload and index reference documents. Files are stored in private Firebase Storage and embedded into Neon pgvector.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadDocuments}
+          disabled={loading}
+          className="text-xs"
+        >
+          {loading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          )}
+          Refresh
+        </Button>
       </div>
 
       {/* Upload Zone */}
@@ -60,12 +81,21 @@ export default function DocumentsPage() {
 
       {/* Document Registry Table */}
       <div className="space-y-4">
-        <h3 className="text-base font-semibold text-white">Indexed Documents ({documents.length})</h3>
-        <DocumentTable
-          documents={documents}
-          onViewSource={(doc) => setSelectedDoc(doc)}
-          onDeleteDocument={handleDelete}
-        />
+        <h3 className="text-base font-semibold text-white">
+          Indexed Documents ({documents.length})
+        </h3>
+        {loading ? (
+          <div className="flex items-center justify-center p-12 text-slate-400 text-sm">
+            <Loader2 className="h-6 w-6 animate-spin mr-2 text-emerald-400" />
+            Loading documents...
+          </div>
+        ) : (
+          <DocumentTable
+            documents={documents}
+            onViewSource={(doc) => setSelectedDoc(doc)}
+            onDeleteDocument={handleDelete}
+          />
+        )}
       </div>
 
       {/* Signed URL Preview Dialog */}

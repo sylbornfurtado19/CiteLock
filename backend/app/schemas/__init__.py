@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Verdict(str, Enum):
@@ -32,11 +32,17 @@ class WorkspaceRead(WorkspaceBase):
     owner_id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Document Schemas
+class DocumentStatus(str, Enum):
+    UPLOADED = "uploaded"
+    PROCESSING = "processing"
+    INDEXED = "indexed"
+    FAILED = "failed"
+
+
 class DocumentRead(BaseModel):
     id: UUID
     workspace_id: UUID
@@ -46,10 +52,12 @@ class DocumentRead(BaseModel):
     status: str
     file_size_bytes: int
     mime_type: str
+    error_message: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, alias="metadata_")
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class DocumentSignedUrlResponse(BaseModel):
@@ -57,6 +65,29 @@ class DocumentSignedUrlResponse(BaseModel):
     filename: str
     download_url: str
     expires_in_seconds: int
+
+
+# Chunk Schemas
+class ChunkRead(BaseModel):
+    id: UUID
+    document_id: UUID
+    chunk_index: int
+    content: str
+    token_count: Optional[int] = None
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, alias="metadata_")
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class SearchResult(BaseModel):
+    chunk_id: UUID
+    document_id: UUID
+    filename: str
+    chunk_index: int
+    content: str
+    score: float
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 # Evidence & Claim Schemas
@@ -69,8 +100,7 @@ class EvidenceLinkRead(BaseModel):
     start_char_offset: Optional[int] = None
     end_char_offset: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClaimRead(BaseModel):
@@ -83,8 +113,7 @@ class ClaimRead(BaseModel):
     rationale: Optional[str] = None
     evidence_links: List[EvidenceLinkRead] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Query & Answer Schemas
@@ -104,8 +133,7 @@ class AnswerRead(BaseModel):
     claims: List[ClaimRead] = []
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class QueryResponse(BaseModel):
@@ -140,7 +168,7 @@ class AnalyticsSummary(BaseModel):
 # Verification API Schemas
 class VerifyRequest(BaseModel):
     statement: str = Field(..., min_length=1)
-    context_passages: List[str] = Field(..., min_items=1)
+    context_passages: List[str] = Field(..., min_length=1)
 
 
 class VerifyResponse(BaseModel):

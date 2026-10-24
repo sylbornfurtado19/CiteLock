@@ -12,10 +12,12 @@ def verify_claim_endpoint(payload: VerifyRequest):
     """Direct developer endpoint to verify any statement against provided context passages."""
     # TODO: Add API key authentication for external developers
     res = evaluate_claim_with_judge(payload.statement, payload.context_passages)
+    verdict_str = res.get("verdict") or Verdict.UNSUPPORTED
+    conf_float = res.get("confidence_score", 0.0)
     return {
         "statement": payload.statement,
-        "verdict": res.get("verdict", Verdict.SUPPORTED),
-        "confidence_score": res.get("confidence_score", 0.95),
+        "verdict": verdict_str,
+        "confidence_score": conf_float,
         "rationale": res.get("rationale", "Verified by evaluation judge against context passages."),
         "supporting_quotes": res.get("supporting_quotes", []),
     }
