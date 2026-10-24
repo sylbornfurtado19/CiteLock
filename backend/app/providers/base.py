@@ -82,7 +82,7 @@ class MockLLMProvider(LLMProvider):
 
         # Claim decomposition request
         if "JSON" in prompt and ("claim" in prompt.lower() or "decompose" in prompt.lower()):
-            text_match = re.search(r"Text to decompose:\s*\"\"\"(.*?)\"\"\"", prompt, re.DOTALL)
+            text_match = re.search(r"(?:Draft Text to Decompose|Text to decompose):\s*\"\"\"(.*?)\"\"\"", prompt, re.DOTALL)
             target_text = text_match.group(1).strip() if text_match else prompt
             sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", target_text) if s.strip()]
             if not sentences and target_text:
@@ -90,7 +90,7 @@ class MockLLMProvider(LLMProvider):
             claims_data = []
             for idx, s in enumerate(sentences):
                 cat = "numeric" if re.search(r"\b\d+", s) else "factual"
-                claims_data.append({"claim_index": idx, "claim_text": s, "category": cat})
+                claims_data.append({"claim_index": idx, "claim_text": s, "category": cat, "source_sentence": s})
             return json.dumps(claims_data)
 
         # Self-correction revision request
@@ -215,10 +215,10 @@ def get_embedding_provider() -> EmbeddingProvider:
     """Factory to instantiate configured remote embedding provider."""
     settings = get_settings()
     provider_name = settings.embedding_provider.lower()
-    if provider_name == "gemini" and settings.gemini_api_key:
+    if provider_name == "gemini":
         from app.providers.gemini_adapter import GeminiProvider
         return GeminiProvider()
-    if provider_name == "openai" and settings.openai_api_key:
+    if provider_name == "openai":
         from app.providers.openai_adapter import OpenAIProvider
         return OpenAIProvider()
     return MockEmbeddingProvider()

@@ -1,4 +1,4 @@
-"""Self-correction controller managing iterative revision loops, retry bounds, and abstention."""
+"""Self-correction controller managing iterative revision loops, targeted evidence retrieval, and abstention."""
 
 from typing import List, Dict, Any, Tuple
 from app.config import get_settings
@@ -13,10 +13,13 @@ def execute_correction_loop(
     verified_claims: List[Dict[str, Any]],
     retrieved_passages: List[Dict[str, Any]],
     max_retries: int | None = None,
-) -> Tuple[str, int, bool, List[Dict[str, Any]]]:
+    db: Any = None,
+    workspace_id: Any = None,
+) -> Tuple[str, int, bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Iteratively correct unsupported or contradictory claims up to maximum bounded retries.
-    Re-verifies claims after each revision pass. Abstains if ungrounded claims cannot be resolved.
+    Iteratively correct unsupported, contradicted, or partially supported claims up to maximum bounded retries.
+    Performs targeted evidence retrieval for failed claims, re-verifies every claim,
+    prevents repeated identical attempts, and cleanly abstains if ungrounded claims cannot be resolved.
     """
     settings = get_settings()
     retries_limit = max_retries if max_retries is not None else settings.max_correction_retries
@@ -24,36 +27,56 @@ def execute_correction_loop(
 
     failed_claims = [
         c for c in verified_claims
-        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence"]
+        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
     ]
 
-    # If all claims in the draft are already supported/partially_supported, no correction needed
+    # If all claims in the draft are already supported, no correction needed
     if not failed_claims:
-        return draft_text, 0, False, verified_claims
+        return draft_text, 0, False, verified_claims, []
 
     current_text = draft_text
     current_claims = verified_claims
+    current_passages = list(retrieved_passages)
     rounds_executed = 0
-
-    passage_texts = [
-        f"[Passage {i+1}]: {p.get('content', '')}"
-        for i, p in enumerate(retrieved_passages)
-        if p.get("content", "").strip()
-    ]
-    passages_block = "\n\n".join(passage_texts)
+    correction_history: List[Dict[str, Any]] = []
+    seen_revisions = {draft_text.strip()}
 
     for round_idx in range(1, retries_limit + 1):
         rounds_executed = round_idx
         failed_subset = [
             c for c in current_claims
-            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence"]
+            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
         ]
 
         if not failed_subset:
             # All claims successfully resolved
-            return current_text, rounds_executed, False, current_claims
+            return current_text, rounds_executed, False, current_claims, correction_history
 
-        # Format critiques for failed claims
+        # 1. Retrieve additional evidence specifically for failed claims
+        newly_retrieved = []
+        if db is not None and workspace_id is not None:
+            try:
+                from app.services.retrieval.hybrid import retrieve_hybrid
+                existing_ids = {
+                    str(p.get("id") or p.get("chunk_id"))
+                    for p in current_passages
+                    if (p.get("id") or p.get("chunk_id"))
+                }
+                for fc in failed_subset[:2]:
+                    claim_query = fc.get("claim_text", "")
+                    if claim_query:
+                        targeted_passages = retrieve_hybrid(db, workspace_id, claim_query, top_k=2)
+                        for tp in targeted_passages:
+                            tp_id = str(tp.get("id") or tp.get("chunk_id"))
+                            if tp_id and tp_id not in existing_ids:
+                                existing_ids.add(tp_id)
+                                newly_retrieved.append(tp)
+                if newly_retrieved:
+                    current_passages.extend(newly_retrieved)
+            except Exception:
+                pass
+
+        # 2. Format critiques for failed claims
         critiques_list = []
         for c in failed_subset:
             critiques_list.append(
@@ -62,6 +85,13 @@ def execute_correction_loop(
                 f"  Critique: {c.get('rationale', 'Not substantiated by evidence.')}"
             )
         critiques_block = "\n".join(critiques_list)
+
+        passage_texts = [
+            f"[Passage {i+1}]: {p.get('content', '')}"
+            for i, p in enumerate(current_passages)
+            if p.get("content", "").strip()
+        ]
+        passages_block = "\n\n".join(passage_texts)
 
         system_prompt = (
             "You are CiteLock's precision self-correction editor. Your job is to surgically edit the draft response "
@@ -91,33 +121,49 @@ def execute_correction_loop(
         if not revised_text:
             break
 
-        # Re-extract claims and re-verify every claim in the revised text
+        # 3. Prevent repeated identical correction attempts
+        if revised_text in seen_revisions:
+            break
+        seen_revisions.add(revised_text)
+
+        # 4. Re-extract claims and re-verify every claim in the revised text
         new_claims = extract_atomic_claims(revised_text)
-        new_verification = verify_claims(new_claims, retrieved_passages)
+        new_verification = verify_claims(new_claims, current_passages)
+
+        new_failures = [
+            c for c in new_verification["claims"]
+            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
+        ]
+
+        attempt_record = {
+            "round": round_idx,
+            "draft_before": current_text,
+            "revised_text": revised_text,
+            "targeted_claims": [c.get("claim_text") for c in failed_subset],
+            "failed_count_before": len(failed_subset),
+            "failed_count_after": len(new_failures),
+            "new_evidence_chunks": [str(p.get("id") or p.get("chunk_id")) for p in newly_retrieved],
+        }
+        correction_history.append(attempt_record)
 
         current_text = revised_text
         current_claims = new_verification["claims"]
 
-        # Check if new verification succeeded
-        new_failures = [
-            c for c in current_claims
-            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence"]
-        ]
         if not new_failures:
-            return current_text, rounds_executed, False, current_claims
+            return current_text, rounds_executed, False, current_claims, correction_history
 
-    # If verification still fails after max retries:
+    # 5. If verification still fails after max retries:
     remaining_failures = [
         c for c in current_claims
-        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence"]
+        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
     ]
 
-    # If majority or critical claims remain unverified, abstain honestly
+    # If evidence remains insufficient or majority of claims remain unverified, abstain honestly
     if len(remaining_failures) >= max(1, len(current_claims) // 2):
         abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
         abstained_claims = extract_atomic_claims(abstention_text)
-        abstained_verification = verify_claims(abstained_claims, retrieved_passages)
-        return abstention_text, rounds_executed, True, abstained_verification["claims"]
+        abstained_verification = verify_claims(abstained_claims, current_passages)
+        return abstention_text, rounds_executed, True, abstained_verification["claims"], correction_history
 
-    # Otherwise return revised text while preserving the actual unresolved verdicts
-    return current_text, rounds_executed, False, current_claims
+    # Otherwise return revised text while preserving the actual unresolved verdicts (never claiming false success)
+    return current_text, rounds_executed, False, current_claims, correction_history

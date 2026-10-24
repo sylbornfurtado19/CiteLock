@@ -47,6 +47,9 @@ def test_end_to_end_query_pipeline_and_persistence(client, workspace_a, mock_sto
     assert len(answer_data["claims"]) >= 1
     assert all("claim_text" in c for c in answer_data["claims"])
     assert all("verdict" in c for c in answer_data["claims"])
+    assert "verification_status" in data
+    assert "execution_metadata" in data
+    assert "latency_ms" in data["execution_metadata"]
 
     # 4. Verify database persistence
     db_query = db.query(Query).filter(Query.id == query_id).first()

@@ -111,6 +111,10 @@ class ClaimRead(BaseModel):
     verdict: Verdict
     confidence_score: Optional[float] = None
     rationale: Optional[str] = None
+    explanation: Optional[str] = None
+    evidence_references: List[Any] = Field(default_factory=list)
+    source_excerpts: List[str] = Field(default_factory=list)
+    verification_metadata: Optional[Dict[str, Any]] = None
     evidence_links: List[EvidenceLinkRead] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -131,6 +135,10 @@ class AnswerRead(BaseModel):
     correction_rounds: int
     is_abstained: bool
     claims: List[ClaimRead] = []
+    correction_history: List[Dict[str, Any]] = Field(default_factory=list)
+    verification_status: Optional[str] = None
+    execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    metrics: Optional[Dict[str, Any]] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -141,6 +149,8 @@ class QueryResponse(BaseModel):
     workspace_id: UUID
     prompt: str
     answer: AnswerRead
+    verification_status: Optional[str] = None
+    execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 # Audit & Export Schemas

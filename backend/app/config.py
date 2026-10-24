@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     embedding_provider: str = "openai"
     embedding_api_key: str | None = None
-    max_correction_retries: int = 3
+    max_correction_retries: int = 2
     chunk_size: int = 500
     chunk_overlap: int = 50
     max_file_size_mb: int = 25

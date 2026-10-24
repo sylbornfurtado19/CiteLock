@@ -21,28 +21,63 @@ from app.services.correction.controller import execute_correction_loop
 
 
 def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -> Dict[str, Any]:
-    """Execute complete audited pipeline: retrieve -> generate -> decompose -> verify -> correct -> persist."""
+    """
+    Execute complete audited RAG pipeline:
+    1. Hybrid retrieval (vector + keyword)
+    2. Grounded draft answer synthesis
+    3. Atomic claim decomposition
+    4. Evidence verification across judge, numeric checks, and provenance
+    5. Targeted iterative self-correction loop
+    6. Relational PostgreSQL persistence with full claim and evidence linkage
+    """
     start_time = time.time()
 
-    # 1. Retrieve
+    # 1. Retrieve evidence
     passages = retrieve_hybrid(db, workspace_id, prompt, top_k=top_k)
 
-    # 2. Generate Draft
+    # 2. Generate Draft Answer
     draft_answer = generate_draft_answer(prompt, passages)
 
-    # 3. Decompose Claims
+    # 3. Decompose Atomic Claims
     raw_claims = extract_atomic_claims(draft_answer)
 
-    # 4. Verify Claims
+    # 4. Verify Claims against Evidence
     verification_result = verify_claims(raw_claims, passages)
 
-    # 5. Self-Correction Loop
-    final_text, rounds, is_abstained, final_claims = execute_correction_loop(
-        prompt, draft_answer, verification_result["claims"], passages
+    # 5. Targeted Self-Correction Loop
+    final_text, rounds, is_abstained, final_claims, correction_history = execute_correction_loop(
+        prompt,
+        draft_answer,
+        verification_result["claims"],
+        passages,
+        db=db,
+        workspace_id=workspace_id,
     )
 
     metrics = compute_verification_metrics(final_claims)
     latency_ms = int((time.time() - start_time) * 1000)
+
+    # Compute verification status
+    if is_abstained:
+        verification_status = "abstained"
+    elif metrics.get("hallucination_rate", 0.0) == 0.0 and len(final_claims) > 0:
+        verification_status = "verified"
+    elif any(c.get("verdict") in ["supported", "partially_supported"] for c in final_claims):
+        verification_status = "partially_verified"
+    else:
+        verification_status = "unresolved"
+
+    execution_metadata = {
+        "latency_ms": latency_ms,
+        "top_k": top_k,
+        "retrieved_passages_count": len(passages),
+        "initial_claim_count": len(raw_claims),
+        "final_claim_count": len(final_claims),
+        "llm_provider": get_settings().llm_provider,
+        "correction_rounds": rounds,
+        "hallucination_rate": metrics.get("hallucination_rate", 0.0),
+        "grounding_rate": metrics.get("grounding_rate", 1.0),
+    }
 
     # 6. Database Persistence
     query_record = Query(
@@ -62,7 +97,12 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
         final_text=final_text,
         correction_rounds=rounds,
         is_abstained=is_abstained,
-        model_config_data={"top_k": top_k, "llm_provider": get_settings().llm_provider},
+        model_config_data={
+            "top_k": top_k,
+            "llm_provider": get_settings().llm_provider,
+            "correction_history": correction_history,
+            "execution_metadata": execution_metadata,
+        },
     )
     db.add(answer_record)
     db.flush()
@@ -76,7 +116,7 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
             claim_text=c.get("claim_text", ""),
             verdict=c.get("verdict", "unsupported"),
             confidence_score=c.get("confidence_score"),
-            rationale=c.get("rationale"),
+            rationale=c.get("rationale") or c.get("explanation"),
         )
         db.add(claim_record)
         db.flush()
@@ -116,17 +156,24 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
     db.refresh(query_record)
     db.refresh(answer_record)
 
+    # Attach dynamic fields to answer_record for Pydantic serialization
+    answer_record.claims = persisted_claim_objs
+
     return {
         "query": query_record,
         "answer": answer_record,
         "query_id": query_record.id,
         "answer_id": answer_record.id,
+        "workspace_id": workspace_id,
         "prompt": prompt,
         "draft_text": draft_answer,
         "final_text": final_text,
         "correction_rounds": rounds,
         "is_abstained": is_abstained,
         "claims": final_claims,
+        "correction_history": correction_history,
+        "verification_status": verification_status,
+        "execution_metadata": execution_metadata,
         "metrics": metrics,
         "latency_ms": latency_ms,
     }

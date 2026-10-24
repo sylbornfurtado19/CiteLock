@@ -48,4 +48,6 @@ def execute_query(
         workspace_id=workspace.id,
         prompt=query_obj.prompt,
         answer=answer_obj,
+        verification_status=pipeline_result.get("verification_status"),
+        execution_metadata=pipeline_result.get("execution_metadata", {}),
     )

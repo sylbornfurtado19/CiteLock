@@ -1,9 +1,7 @@
 """Structured LLM judge service evaluating claims against evidence passages."""
 
 from typing import List, Dict, Any
-
 import app.providers.base as providers_base
-
 
 VALID_VERDICTS = {
     "supported",
@@ -32,17 +30,27 @@ def evaluate_claim_with_judge(claim_text: str, evidence_passages: List[str]) -> 
         llm = providers_base.get_llm_provider()
         res = llm.structured_judge(claim_text, cleaned_passages)
         if not isinstance(res, dict):
-            raise ValueError(f"Judge returned non-dict response: {type(res)}")
+            return {
+                "verdict": "insufficient_evidence" if not cleaned_passages else "unsupported",
+                "confidence_score": 0.0,
+                "rationale": f"Judge returned invalid non-dict response: {type(res)}",
+                "supporting_quotes": [],
+            }
 
         raw_verdict = str(res.get("verdict", "")).lower().strip()
         if raw_verdict not in VALID_VERDICTS:
-            raw_verdict = "unsupported"
+            return {
+                "verdict": "insufficient_evidence" if not cleaned_passages else "unsupported",
+                "confidence_score": 0.0,
+                "rationale": f"Judge returned unrecognized verdict: '{raw_verdict}'. Treated as unresolved.",
+                "supporting_quotes": [],
+            }
 
         conf = res.get("confidence_score")
         try:
             conf_float = max(0.0, min(1.0, float(conf)))
         except (TypeError, ValueError):
-            conf_float = 0.5 if raw_verdict in {"supported", "contradicted"} else 0.0
+            conf_float = 0.0
 
         return {
             "verdict": raw_verdict,
@@ -52,7 +60,7 @@ def evaluate_claim_with_judge(claim_text: str, evidence_passages: List[str]) -> 
         }
     except Exception as e:
         return {
-            "verdict": "unsupported",
+            "verdict": "insufficient_evidence" if not cleaned_passages else "unsupported",
             "confidence_score": 0.0,
             "rationale": f"Verification judge evaluation failed: {str(e)[:150]}",
             "supporting_quotes": [],
