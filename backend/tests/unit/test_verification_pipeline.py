@@ -328,3 +328,35 @@ def test_corrections_accepted_only_after_successful_reverification(monkeypatch):
     assert is_abstained is False
     assert "false assertion" not in final_text
     assert all(c["verdict"] == "supported" for c in final_claims)
+
+
+def test_unknown_verdict_explicitly_classified_in_scoring():
+    """Verify missing, malformed, or unrecognized verdicts are categorized as unknown rather than silently unsupported."""
+    from app.services.verification.scoring import compute_verification_metrics
+
+    claims = [
+        {"claim_text": "Supported claim", "verdict": "supported"},
+        {"claim_text": "Strange verdict claim", "verdict": "alleged_truth"},
+        {"claim_text": "Missing verdict claim", "verdict": None},
+    ]
+
+    metrics = compute_verification_metrics(claims)
+    assert metrics["total_claims"] == 3
+    assert metrics["supported_count"] == 1
+    assert metrics["unknown_count"] == 2
+    assert metrics["verdict_distribution"]["unknown"] == 2
+    assert metrics["verdict_distribution"]["unsupported"] == 0
+    # Hallucination includes only contradicted and unsupported, NOT unknown
+    assert metrics["hallucination_rate"] == 0.0
+
+
+def test_empty_claims_metrics_safe():
+    """Verify compute_verification_metrics handles empty claim lists without division by zero."""
+    from app.services.verification.scoring import compute_verification_metrics
+
+    metrics = compute_verification_metrics([])
+    assert metrics["total_claims"] == 0
+    assert metrics["hallucination_rate"] == 0.0
+    assert metrics["grounding_rate"] == 0.0
+    assert metrics["verdict_distribution"]["unknown"] == 0
+

@@ -1,10 +1,14 @@
 """Self-correction controller managing iterative revision loops, targeted evidence retrieval, and abstention."""
 
+import logging
 from typing import List, Dict, Any, Tuple
 from app.config import get_settings
 import app.providers.base as providers_base
 from app.services.generation.claim_extractor import extract_atomic_claims
 from app.services.verification.engine import verify_claims
+from app.security.injection_guard import sanitize_untrusted_passage
+
+logger = logging.getLogger(__name__)
 
 
 def execute_correction_loop(

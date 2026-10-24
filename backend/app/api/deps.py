@@ -28,10 +28,14 @@ def get_current_user(
             dev_uid = "dev_default_firebase_uid"
             user = db.query(User).filter(User.firebase_uid == dev_uid).first()
             if not user:
-                user = User(firebase_uid=dev_uid, email="dev@citelock.local")
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+                try:
+                    user = User(firebase_uid=dev_uid, email="dev@citelock.local")
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                except Exception:
+                    db.rollback()
+                    user = db.query(User).filter(User.firebase_uid == dev_uid).first()
             return user
 
         raise HTTPException(
@@ -51,10 +55,16 @@ def get_current_user(
 
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
-        user = User(firebase_uid=uid, email=claims.get("email"))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            user = User(firebase_uid=uid, email=claims.get("email"))
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            user = db.query(User).filter(User.firebase_uid == uid).first()
+            if not user:
+                raise
 
     return user
 

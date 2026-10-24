@@ -32,7 +32,7 @@ def execute_query(
             db.add(event)
             db.commit()
         except Exception:
-            pass
+            db.rollback()
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

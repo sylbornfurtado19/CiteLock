@@ -8,19 +8,21 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
     if not verified_claims:
         return {
             "hallucination_rate": 0.0,
-            "grounding_rate": 1.0,
+            "grounding_rate": 0.0,
             "total_claims": 0,
             "supported_count": 0,
             "partially_supported_count": 0,
             "contradicted_count": 0,
             "unsupported_count": 0,
             "insufficient_evidence_count": 0,
+            "unknown_count": 0,
             "verdict_distribution": {
                 "supported": 0,
                 "partially_supported": 0,
                 "contradicted": 0,
                 "unsupported": 0,
                 "insufficient_evidence": 0,
+                "unknown": 0,
             },
         }
 
@@ -31,14 +33,15 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
         "contradicted": 0,
         "unsupported": 0,
         "insufficient_evidence": 0,
+        "unknown": 0,
     }
 
     for c in verified_claims:
-        v = c.get("verdict", "unsupported")
-        if v in counts:
+        v = c.get("verdict")
+        if v in counts and v != "unknown":
             counts[v] += 1
         else:
-            counts["unsupported"] += 1
+            counts["unknown"] += 1
 
     # Hallucination includes contradicted + unsupported claims
     hallucinated = counts["contradicted"] + counts["unsupported"]
@@ -54,5 +57,6 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
         "contradicted_count": counts["contradicted"],
         "unsupported_count": counts["unsupported"],
         "insufficient_evidence_count": counts["insufficient_evidence"],
+        "unknown_count": counts["unknown"],
         "verdict_distribution": counts,
     }

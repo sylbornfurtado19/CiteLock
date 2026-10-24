@@ -1,6 +1,6 @@
 """Audit data exporter serializing answer claims and provenance into standardized JSON."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from uuid import UUID
 from fastapi import HTTPException, status
@@ -34,10 +34,11 @@ def export_answer_audit_json(db: Session, answer_id: UUID, workspace_id: Optiona
         "contradicted": 0,
         "unsupported": 0,
         "insufficient_evidence": 0,
+        "unknown": 0,
     }
 
     for c in claims:
-        v = c.verdict if c.verdict in verdict_counts else "unsupported"
+        v = c.verdict if c.verdict in verdict_counts else "unknown"
         verdict_counts[v] += 1
 
         ev_links_data = []
@@ -75,7 +76,7 @@ def export_answer_audit_json(db: Session, answer_id: UUID, workspace_id: Optiona
         "correction_rounds": answer.correction_rounds,
         "is_abstained": answer.is_abstained,
         "created_at": answer.created_at.isoformat() if answer.created_at else None,
-        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "claims": claims_data,
         "metrics": {
             "total_claims": total_claims,

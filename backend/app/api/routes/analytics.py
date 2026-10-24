@@ -41,10 +41,11 @@ def get_workspace_analytics(
         "contradicted": 0,
         "unsupported": 0,
         "insufficient_evidence": 0,
+        "unknown": 0,
     }
 
     for c in claims:
-        v = c.verdict if c.verdict in verdict_distribution else "unsupported"
+        v = c.verdict if c.verdict in verdict_distribution else "unknown"
         verdict_distribution[v] += 1
 
     total_claims = len(claims)
