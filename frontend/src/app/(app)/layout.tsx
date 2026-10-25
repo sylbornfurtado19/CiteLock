@@ -2,18 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Shield,
   LayoutDashboard,
   Files,
   MessageSquare,
-  FileSearch,
   SlidersHorizontal,
   FlaskConical,
   LogOut,
   Menu,
   X,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -21,15 +21,22 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Documents", href: "/documents", icon: Files },
   { label: "Grounded Chat", href: "/chat", icon: MessageSquare },
-  { label: "Audits", href: "/audits/demo-audit-001", icon: FileSearch },
   { label: "Evaluation", href: "/evaluation", icon: FlaskConical },
   { label: "Settings", href: "/settings", icon: SlidersHorizontal },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
 
   // Close mobile drawer on navigation change
   useEffect(() => {
@@ -43,7 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const isActive =
           item.href === "/dashboard"
             ? pathname === "/dashboard"
-            : pathname.startsWith(item.href.split("/demo")[0]);
+            : pathname.startsWith(item.href);
 
         return (
           <Link
@@ -67,6 +74,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       })}
     </nav>
   );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#05020D]">
+        <div className="flex items-center gap-3 text-purple-300 text-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+          Authenticating auditor session...
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-[#05020D] text-[#F5F0FF]">
@@ -116,7 +138,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-purple-900/25 bg-[#0B0616]/60 flex items-center justify-between">
           <div className="flex flex-col truncate pr-2">
             <span className="text-xs font-medium text-[#F5F0FF] truncate">
-              {user?.email || "Auditor (Demo Mode)"}
+              {user?.email || "Auditor"}
             </span>
             <span className="text-[10px] text-[#8D829F] font-mono">Default Workspace</span>
           </div>
@@ -163,7 +185,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="p-4 border-t border-purple-900/30 bg-[#070311] flex items-center justify-between">
               <div className="flex flex-col truncate pr-2">
                 <span className="text-xs font-medium text-white truncate">
-                  {user?.email || "Auditor (Demo Mode)"}
+                  {user?.email || "Auditor"}
                 </span>
                 <span className="text-[10px] text-[#8D829F] font-mono">Default Workspace</span>
               </div>

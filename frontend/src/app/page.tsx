@@ -194,7 +194,7 @@ export default function LandingPage() {
             </Link>
             <Link href="/login">
               <Button variant="outline" size="lg" className="text-sm">
-                View Demo Workspace
+                Sign In
               </Button>
             </Link>
           </div>

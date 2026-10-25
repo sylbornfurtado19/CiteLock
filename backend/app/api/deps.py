@@ -24,7 +24,7 @@ def get_current_user(
         from app.config import get_settings
         settings = get_settings()
         if settings.allow_dev_auth is True or settings.environment.lower() == "development":
-            # Explicit opt-in development/demo fallback
+            # Explicit opt-in development test fallback
             dev_uid = "dev_default_firebase_uid"
             user = db.query(User).filter(User.firebase_uid == dev_uid).first()
             if not user:
