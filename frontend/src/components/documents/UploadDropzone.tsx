@@ -40,7 +40,8 @@ export function UploadDropzone({
       if (onUploadSuccess) onUploadSuccess(uploadedDoc);
     } catch (err: unknown) {
       console.error(err);
-      setError("Failed to upload document to backend API.");
+      const msg = err instanceof Error ? err.message : "Failed to upload document to backend API.";
+      setError(msg);
     } finally {
       setIsUploading(false);
     }

@@ -45,7 +45,7 @@ def get_current_user(
 
     token = credentials.credentials
     claims = verify_id_token(token)
-    uid = claims.get("uid")
+    uid = claims.get("uid") or claims.get("user_id") or claims.get("sub")
 
     if not uid:
         raise HTTPException(
@@ -56,7 +56,7 @@ def get_current_user(
     user = db.query(User).filter(User.firebase_uid == uid).first()
     if not user:
         try:
-            user = User(firebase_uid=uid, email=claims.get("email"))
+            user = User(firebase_uid=uid, email=claims.get("email") or f"{uid}@citelock.user")
             db.add(user)
             db.commit()
             db.refresh(user)

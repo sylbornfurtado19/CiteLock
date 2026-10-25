@@ -165,7 +165,15 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => router.push("/dashboard")}
+            onClick={async () => {
+              try {
+                const { signInAnonymously } = await import("firebase/auth");
+                await signInAnonymously(auth);
+              } catch (e) {
+                console.warn("Guest sign in fallback:", e);
+              }
+              router.push("/dashboard");
+            }}
             className="w-full h-10 border border-purple-500/20 bg-purple-950/20 hover:bg-purple-900/30 text-purple-300 text-xs font-mono"
           >
             Continue as Guest / Demo Auditor →

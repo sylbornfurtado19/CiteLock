@@ -224,8 +224,12 @@ def get_embedding_provider() -> EmbeddingProvider:
     return MockEmbeddingProvider()
 
 
+_none_storage_singleton = None
+
+
 def get_storage_provider():
     """Factory to instantiate configured object storage provider."""
+    global _none_storage_singleton
     settings = get_settings()
     provider_name = settings.storage_provider.lower()
     if provider_name == "firebase" and settings.firebase_storage_bucket:
@@ -234,5 +238,8 @@ def get_storage_provider():
             return FirebaseStorageProvider()
         except Exception:
             pass
-    from app.providers.none_storage import NoneStorageProvider
-    return NoneStorageProvider()
+    if _none_storage_singleton is None:
+        from app.providers.none_storage import NoneStorageProvider
+        _none_storage_singleton = NoneStorageProvider()
+    return _none_storage_singleton
+

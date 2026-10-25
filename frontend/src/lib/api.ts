@@ -21,6 +21,15 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
 
+  // Wait for Firebase Auth session to be restored from IndexedDB
+  if (typeof window !== "undefined" && typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      // Continue even if auth state ready check encounters an issue
+    }
+  }
+
   // Retrieve Firebase ID token from current authenticated user
   const currentUser = auth.currentUser;
   if (currentUser) {
