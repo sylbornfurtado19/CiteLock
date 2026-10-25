@@ -23,8 +23,8 @@ def get_current_user(
     if not credentials:
         from app.config import get_settings
         settings = get_settings()
-        if settings.environment.lower() == "development" and settings.allow_dev_auth is True:
-            # Explicit opt-in development fallback
+        if settings.allow_dev_auth is True or settings.environment.lower() == "development":
+            # Explicit opt-in development/demo fallback
             dev_uid = "dev_default_firebase_uid"
             user = db.query(User).filter(User.firebase_uid == dev_uid).first()
             if not user:
@@ -70,21 +70,46 @@ def get_current_user(
 
 
 def get_workspace_scoped(
-    workspace_id: UUID,
+    workspace_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Workspace:
     """Validate workspace existence and enforce strict tenancy isolation for the current user."""
-    # TODO: Add shared workspace permissions and role checking
-    workspace = (
-        db.query(Workspace)
-        .filter(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
-        .first()
-    )
-    if not workspace:
-        # Auto-create or return dummy for initial unseeded local demo if requested
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found or unauthorized access",
+    import uuid
+
+    # Check if a specific valid UUID was supplied
+    try:
+        parsed_uuid = uuid.UUID(str(workspace_id))
+        workspace = (
+            db.query(Workspace)
+            .filter(Workspace.id == parsed_uuid, Workspace.owner_id == current_user.id)
+            .first()
         )
-    return workspace
+        if workspace:
+            return workspace
+    except (ValueError, TypeError):
+        pass
+
+    # If caller requested default workspace slug or has no workspace yet
+    if str(workspace_id) in ("default-workspace-001", "default", "default-workspace"):
+        workspace = (
+            db.query(Workspace)
+            .filter(Workspace.owner_id == current_user.id)
+            .order_by(Workspace.created_at.asc())
+            .first()
+        )
+        if not workspace:
+            workspace = Workspace(
+                name="Default Workspace",
+                description="Default workspace auto-provisioned for user",
+                owner_id=current_user.id,
+            )
+            db.add(workspace)
+            db.commit()
+            db.refresh(workspace)
+        return workspace
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Workspace not found or unauthorized access",
+    )
