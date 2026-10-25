@@ -52,14 +52,18 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           answer: response.answer,
         },
       ]);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "An error occurred executing the audited RAG pipeline. Check backend connection.";
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           sender: "assistant",
-          text: "An error occurred executing the audited RAG pipeline. Check backend connection.",
+          text: errorMessage,
         },
       ]);
     } finally {

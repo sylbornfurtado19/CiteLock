@@ -24,6 +24,15 @@ def search_vectors(
     if not query_text.strip():
         return []
 
+    # Short-circuit if workspace has no indexed documents
+    has_indexed_docs = (
+        db.query(Document.id)
+        .filter(Document.workspace_id == workspace_id, Document.status == "indexed")
+        .first()
+    )
+    if not has_indexed_docs:
+        return []
+
     embedding_provider = providers_base.get_embedding_provider()
     query_embedding = embedding_provider.embed_text(query_text)
 

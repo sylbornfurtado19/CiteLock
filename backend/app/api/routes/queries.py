@@ -39,7 +39,16 @@ def execute_query(
             detail=f"Query rejected by Prompt Injection Guard: {msg}",
         )
 
-    pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=payload.top_k)
+    try:
+        pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=payload.top_k)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Pipeline execution failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"RAG Pipeline execution error: {str(e)}",
+        )
+
     query_obj = pipeline_result["query"]
     answer_obj = pipeline_result["answer"]
 
