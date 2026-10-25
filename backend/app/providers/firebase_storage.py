@@ -16,6 +16,8 @@ class FirebaseStorageProvider(StorageProvider):
         init_firebase_admin()
         settings = get_settings()
         self.bucket_name = settings.firebase_storage_bucket
+        if self.bucket_name and self.bucket_name.startswith("gs://"):
+            self.bucket_name = self.bucket_name.replace("gs://", "").rstrip("/")
 
     def _get_bucket(self):
         """Retrieve bucket instance, raising StorageError if unconfigured."""
