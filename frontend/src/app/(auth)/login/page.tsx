@@ -24,66 +24,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
-      <Card className="w-full max-w-md border-slate-800 bg-slate-900/60 p-8">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-950 border border-emerald-800">
-            <Shield className="h-6 w-6 text-emerald-400" />
+    <div className="relative flex min-h-screen items-center justify-center bg-[#05020D] px-4 overflow-hidden">
+      {/* Background ambient glow */}
+      <div 
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,0.18)_0%,rgba(168,85,247,0.06)_40%,transparent_75%)]" 
+        aria-hidden="true"
+      />
+      <div 
+        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <Card className="relative z-10 w-full max-w-md border-purple-500/20 bg-[#100A1C]/80 backdrop-blur-xl p-8 shadow-glow-sm">
+        <CardHeader className="text-center pb-6">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-950/60 border border-purple-500/30 text-purple-300 shadow-glow-xs">
+            <Shield className="h-7 w-7 text-purple-400" />
           </div>
-          <CardTitle className="text-xl">Sign in to CiteLock</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold tracking-tight text-purple-100">Sign in to CiteLock</CardTitle>
+          <CardDescription className="text-purple-300/70 text-sm mt-1.5">
             Enter your credentials or use Google Auth to access your audited workspaces.
           </CardDescription>
         </CardHeader>
 
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+            <label className="block text-xs font-medium text-purple-200/80 mb-1.5">Email Address</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <Mail className="absolute left-3.5 top-3 h-4 w-4 text-purple-400/60" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="auditor@enterprise.com"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-purple-900/40 bg-[#070311] pl-10 pr-4 py-2.5 text-sm text-purple-100 placeholder:text-purple-400/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+            <label className="block text-xs font-medium text-purple-200/80 mb-1.5">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <Lock className="absolute left-3.5 top-3 h-4 w-4 text-purple-400/60" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-purple-900/40 bg-[#070311] pl-10 pr-4 py-2.5 text-sm text-purple-100 placeholder:text-purple-400/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all"
               />
             </div>
           </div>
 
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full mt-2 h-10 font-medium">
             Sign In with Email
           </Button>
         </form>
 
-        <div className="relative my-6 text-center text-xs text-slate-500">
+        <div className="relative my-6 text-center text-xs text-purple-400/60">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-800" />
+            <div className="w-full border-t border-purple-900/30" />
           </div>
-          <span className="relative bg-slate-900 px-2 uppercase">Or continue with</span>
+          <span className="relative bg-[#100A1C] px-3 font-mono tracking-wider uppercase">Or continue with</span>
         </div>
 
         <Button
           type="button"
           variant="secondary"
           onClick={handleGoogleLogin}
-          className="w-full gap-2"
+          className="w-full h-10 gap-2.5 border-purple-900/40 bg-[#171025] hover:bg-[#1E1435] text-purple-200"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path
@@ -106,7 +116,7 @@ export default function LoginPage() {
           Google Workspace Account
         </Button>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-purple-400/50 leading-relaxed">
           CiteLock client SDK coordinates authentication state. Token verification occurs via FastAPI on Render.
         </p>
       </Card>

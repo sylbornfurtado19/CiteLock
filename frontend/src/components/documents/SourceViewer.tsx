@@ -40,37 +40,42 @@ export function SourceViewer({
   return (
     <Dialog open={!!document} onClose={onClose} title={document.filename}>
       <div className="space-y-4">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[#B0A4C3]">
           Private bucket document accessed through a temporary backend-generated signed URL.
         </p>
 
         {loading ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+          <div className="flex flex-col items-center justify-center p-8 space-y-2">
+            <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+            <span className="text-xs text-[#8D829F] font-mono">Generating signed URL...</span>
           </div>
         ) : signedUrlData ? (
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-              <span className="text-[11px] font-mono text-slate-500 block mb-1">
+            <div className="rounded-xl border border-purple-900/35 bg-[#070311] p-4 space-y-2">
+              <span className="text-[11px] font-mono text-[#8D829F] block truncate">
                 Storage Path: {document.storage_path}
               </span>
-              <span className="text-[11px] font-mono text-slate-400 block mb-3">
+              <span className="text-[11px] font-mono text-purple-300 block">
                 Valid for: {signedUrlData.expires_in_seconds / 60} minutes
               </span>
-              <a
-                href={signedUrlData.download_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="primary" size="sm" className="w-full">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Document in New Tab
-                </Button>
-              </a>
+              <div className="pt-2">
+                <a
+                  href={signedUrlData.download_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="primary" size="sm" className="w-full gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Open Document in New Tab
+                  </Button>
+                </a>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="text-xs text-red-400">Unable to generate signed URL.</div>
+          <div className="text-xs text-rose-400 bg-rose-950/40 border border-rose-500/30 rounded-xl p-3">
+            Unable to generate signed URL. Verify workspace permissions.
+          </div>
         )}
       </div>
     </Dialog>

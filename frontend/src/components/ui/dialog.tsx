@@ -16,18 +16,27 @@ export function Dialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+    >
+      <div className="relative w-full max-w-lg rounded-2xl border border-purple-500/25 bg-[#100A1C] p-6 shadow-[0_16px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+        {/* Subtle ambient spotlight */}
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-32 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative flex items-center justify-between border-b border-purple-900/30 pb-3 mb-4">
+          <h3 className="text-lg font-semibold tracking-tight text-[#F5F0FF]">{title}</h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+            aria-label="Close dialog"
+            className="rounded-lg p-1.5 text-purple-300 hover:bg-purple-950/60 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div>{children}</div>
+        <div className="relative">{children}</div>
       </div>
     </div>
   );

@@ -3,12 +3,109 @@
 @tailwind utilities;
 
 :root {
-  --background: #090d16;
-  --foreground: #f8fafc;
+  --background: #05020D;
+  --foreground: #F5F0FF;
+  --surface: #100A1C;
+  --surface-border: rgba(196, 167, 255, 0.14);
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Atmospheric Ambient Lighting */
+.bg-ambient-radial {
+  background: radial-gradient(circle 800px at 50% -100px, rgba(139, 92, 246, 0.18), rgba(5, 2, 13, 0) 70%);
+}
+
+.bg-ambient-hero {
+  background: radial-gradient(ellipse 900px 500px at 50% 20%, rgba(124, 58, 237, 0.22), rgba(5, 2, 13, 0) 75%);
+}
+
+/* Luminous Reflect-Style Arch Halo */
+.neon-halo-arch {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  max-width: 95vw;
+  height: 420px;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(168, 85, 247, 0.45) 0%,
+    rgba(139, 92, 246, 0.28) 40%,
+    rgba(109, 40, 217, 0.1) 70%,
+    transparent 100%
+  );
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.neon-halo-rim {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 780px;
+  max-width: 90vw;
+  height: 340px;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  border-top: 2px solid rgba(233, 213, 255, 0.85);
+  box-shadow: 
+    0 -4px 30px rgba(216, 180, 254, 0.8),
+    0 -12px 60px rgba(168, 85, 247, 0.6),
+    0 -24px 100px rgba(124, 58, 237, 0.4);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Glassmorphic Panel with Specular Highlight */
+.glass-panel {
+  background: rgba(16, 10, 28, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(196, 167, 255, 0.14);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(233, 213, 255, 0.12),
+    0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+.glass-pill {
+  background: rgba(19, 13, 34, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(196, 167, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Custom Deep Violet Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #05020D;
+}
+::-webkit-scrollbar-thumb {
+  background: #2E1065;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #581C87;
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

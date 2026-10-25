@@ -50,10 +50,10 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Document Vault</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-[#F5F0FF]">Document Vault</h1>
+          <p className="text-sm text-[#B0A4C3] mt-1">
             Upload and index reference documents. Files are stored in private Firebase Storage and embedded into Neon pgvector.
           </p>
         </div>
@@ -62,12 +62,12 @@ export default function DocumentsPage() {
           size="sm"
           onClick={loadDocuments}
           disabled={loading}
-          className="text-xs"
+          className="text-xs self-start sm:self-auto"
         >
           {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
           ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300" />
           )}
           Refresh
         </Button>
@@ -81,12 +81,12 @@ export default function DocumentsPage() {
 
       {/* Document Registry Table */}
       <div className="space-y-4">
-        <h3 className="text-base font-semibold text-white">
+        <h3 className="text-base font-semibold text-[#F5F0FF]">
           Indexed Documents ({documents.length})
         </h3>
         {loading ? (
-          <div className="flex items-center justify-center p-12 text-slate-400 text-sm">
-            <Loader2 className="h-6 w-6 animate-spin mr-2 text-emerald-400" />
+          <div className="flex items-center justify-center p-12 text-[#8D829F] text-sm">
+            <Loader2 className="h-6 w-6 animate-spin mr-2 text-purple-400" />
             Loading documents...
           </div>
         ) : (

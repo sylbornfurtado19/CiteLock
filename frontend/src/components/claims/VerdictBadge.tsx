@@ -18,5 +18,10 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
     label: verdict,
     variant: "neutral",
   };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return (
+    <Badge variant={config.variant} className="gap-1.5 font-mono text-[11px] tracking-tight">
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-90 shadow-[0_0_6px_currentColor]" />
+      {config.label}
+    </Badge>
+  );
 }

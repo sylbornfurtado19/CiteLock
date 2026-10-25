@@ -70,8 +70,8 @@ export default function AuditDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-4">
-        <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
-        <p className="text-sm text-slate-400">Loading audit trail...</p>
+        <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+        <p className="text-sm text-[#8D829F] font-mono">Loading audit trail & provenance links...</p>
       </div>
     );
   }
@@ -81,14 +81,14 @@ export default function AuditDetailPage() {
       <div className="space-y-6 max-w-5xl mx-auto">
         <Link href="/dashboard">
           <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-1" />
+            <ArrowLeft className="h-4 w-4 mr-1 text-purple-300" />
             Back to Dashboard
           </Button>
         </Link>
-        <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-6 text-center space-y-3">
-          <AlertCircle className="h-8 w-8 text-red-400 mx-auto" />
-          <h2 className="text-base font-semibold text-white">Audit Not Found</h2>
-          <p className="text-sm text-slate-400">{error || "No audit details available."}</p>
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 p-8 text-center space-y-3 backdrop-blur-md">
+          <AlertCircle className="h-8 w-8 text-rose-400 mx-auto" />
+          <h2 className="text-base font-semibold text-[#F5F0FF]">Audit Not Found</h2>
+          <p className="text-sm text-[#B0A4C3]">{error || "No audit details available."}</p>
         </div>
       </div>
     );
@@ -97,19 +97,19 @@ export default function AuditDetailPage() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-purple-300 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+            <h1 className="text-2xl font-bold tracking-tight text-[#F5F0FF]">
               Answer Audit #{answerId.slice(0, 12)}
             </h1>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">
+            <p className="text-xs text-[#8D829F] font-mono mt-0.5">
               Query ID: {auditData.query_id} • Created:{" "}
               {new Date(auditData.created_at).toLocaleString()}
             </p>
@@ -121,22 +121,23 @@ export default function AuditDetailPage() {
           size="sm"
           onClick={handleExport}
           disabled={exporting}
+          className="self-start sm:self-auto gap-2 text-xs"
         >
           {exporting ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
           ) : (
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="h-4 w-4 text-purple-300" />
           )}
           Export Audit JSON
         </Button>
       </div>
 
       {/* Query Banner */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+      <div className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md space-y-1.5">
+        <span className="text-xs font-mono font-medium uppercase tracking-wider text-purple-400 block">
           Audited Query Prompt
         </span>
-        <p className="text-sm font-medium text-white">{auditData.prompt}</p>
+        <p className="text-sm font-medium text-[#F5F0FF] leading-relaxed">{auditData.prompt}</p>
       </div>
 
       {/* Self-Correction Lifecycle Timeline */}
@@ -148,18 +149,18 @@ export default function AuditDetailPage() {
       />
 
       {/* Decomposed Atomic Claims */}
-      <div className="space-y-4 pt-4 border-t border-slate-800">
+      <div className="space-y-4 pt-6 border-t border-purple-900/30">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">
+          <h3 className="text-base font-semibold text-[#F5F0FF]">
             Decomposed Atomic Claims ({auditData.claims.length})
           </h3>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs font-mono px-2.5 py-0.5 rounded-full border border-purple-500/30 bg-purple-950/60 text-purple-300">
             Hallucination Rate: {Math.round(auditData.hallucination_rate * 100)}%
           </span>
         </div>
 
         {auditData.claims.length === 0 ? (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 text-center text-sm text-slate-400">
+          <div className="rounded-2xl border border-purple-900/25 bg-[#100A1C]/50 p-8 text-center text-sm text-[#8D829F]">
             No atomic claims were decomposed for this answer.
           </div>
         ) : (

@@ -18,14 +18,16 @@ export function VerdictDistributionChart({
   ];
 
   return (
-    <Card className="border-slate-800 bg-slate-900/50">
+    <Card className="rounded-xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6">
       <CardHeader>
-        <CardTitle className="text-base">Audit Verdict Distribution</CardTitle>
+        <CardTitle className="text-base font-semibold text-[#F5F0FF]">
+          Audit Verdict Distribution
+        </CardTitle>
       </CardHeader>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* Progress bar stack */}
-        <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-800">
+        <div className="flex h-3.5 w-full overflow-hidden rounded-full bg-[#070311] border border-purple-900/40 p-0.5">
           {items.map((item) => {
             const pct = (item.count / total) * 100;
             if (pct === 0) return null;
@@ -33,7 +35,7 @@ export function VerdictDistributionChart({
               <div
                 key={item.verdict}
                 style={{ width: `${pct}%` }}
-                className={`${item.color} h-full transition-all`}
+                className={`${item.color} h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 shadow-sm`}
                 title={`${item.label}: ${item.count} (${Math.round(pct)}%)`}
               />
             );
@@ -41,12 +43,12 @@ export function VerdictDistributionChart({
         </div>
 
         {/* Legend */}
-        <div className="grid grid-cols-2 gap-2 pt-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-3">
           {items.map((item) => (
             <div key={item.verdict} className="flex items-center gap-2 text-xs">
-              <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
-              <span className="text-slate-400">{item.label}:</span>
-              <span className="font-semibold text-white">{item.count}</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${item.color} shadow-[0_0_8px_currentColor]`} />
+              <span className="text-[#B0A4C3]">{item.label}:</span>
+              <span className="font-mono font-semibold text-[#F5F0FF]">{item.count}</span>
             </div>
           ))}
         </div>

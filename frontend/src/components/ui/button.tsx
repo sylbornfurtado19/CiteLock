@@ -10,20 +10,24 @@ export interface ButtonProps
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", ...props }, ref) => {
     const base =
-      "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center rounded-lg font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
 
     const variants = {
-      primary: "bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm",
-      secondary: "bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700",
-      outline: "border border-slate-700 bg-transparent hover:bg-slate-800 text-slate-200",
-      danger: "bg-red-600 text-white hover:bg-red-500",
-      ghost: "hover:bg-slate-850 text-slate-300 hover:text-white",
+      primary:
+        "bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white hover:from-purple-500 hover:via-violet-500 hover:to-indigo-500 shadow-[0_0_20px_rgba(139,92,246,0.35)] border border-purple-400/30",
+      secondary:
+        "bg-[#171025] text-purple-100 hover:bg-[#1E1435] border border-purple-500/20 shadow-sm hover:border-purple-500/30",
+      outline:
+        "border border-purple-500/25 bg-transparent hover:bg-purple-950/30 text-purple-200 hover:text-white hover:border-purple-400/40",
+      danger:
+        "bg-red-950/70 text-red-200 hover:bg-red-900/80 border border-red-800/60 shadow-sm",
+      ghost: "hover:bg-purple-950/40 text-purple-300 hover:text-white",
     };
 
     const sizes = {
-      sm: "h-8 px-3 text-xs",
-      md: "h-9 px-4 text-sm",
-      lg: "h-11 px-6 text-base",
+      sm: "h-8 px-3 text-xs tracking-tight",
+      md: "h-9 px-4 text-sm tracking-tight",
+      lg: "h-11 px-6 text-base tracking-tight",
     };
 
     return (

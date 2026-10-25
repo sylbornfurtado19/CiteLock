@@ -68,26 +68,26 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
   };
 
   return (
-    <div className="flex flex-col h-[700px] rounded-xl border border-slate-800 bg-slate-900/40">
+    <div className="flex flex-col h-[calc(100vh-13rem)] min-h-[520px] max-h-[820px] rounded-2xl border border-purple-900/30 bg-[#100A1C]/75 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl">
       {/* Message history */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
           >
             {msg.sender === "assistant" && (
-              <div className="h-8 w-8 rounded-lg bg-emerald-950 border border-emerald-800 flex items-center justify-center shrink-0">
-                <Bot className="h-4 w-4 text-emerald-400" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0">
+                <Bot className="h-4 w-4" />
               </div>
             )}
             <div className="max-w-2xl">
               {msg.text && (
                 <div
-                  className={`rounded-xl p-4 text-sm leading-relaxed ${
+                  className={`rounded-2xl p-4 text-sm leading-relaxed ${
                     msg.sender === "user"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-800/80 text-slate-200 border border-slate-700"
+                      ? "bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-[0_4px_18px_rgba(139,92,246,0.3)]"
+                      : "bg-[#0B0616]/90 text-[#F5F0FF] border border-purple-900/35 rounded-tl-sm shadow-sm"
                   }`}
                 >
                   {msg.text}
@@ -100,27 +100,27 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           </div>
         ))}
         {loading && (
-          <div className="flex items-center gap-2 text-xs text-emerald-400 font-mono">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Auditing claims & verifying source provenance...</span>
+          <div className="flex items-center gap-2.5 text-xs text-purple-300 font-mono py-1">
+            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+            <span>Auditing claims & verifying source provenance against pgvector...</span>
           </div>
         )}
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-800 bg-slate-900/60">
+      <form onSubmit={handleSubmit} className="p-3 sm:p-4 border-t border-purple-900/30 bg-[#0B0616]/80">
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question about your indexed documents..."
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="flex-1 rounded-xl border border-purple-900/40 bg-[#070311] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder:text-[#8D829F] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all"
             disabled={loading}
           />
-          <Button type="submit" disabled={loading || !input.trim()}>
-            <Sparkles className="h-4 w-4 mr-1.5" />
-            Query
+          <Button type="submit" disabled={loading || !input.trim()} className="gap-1.5">
+            <Sparkles className="h-4 w-4" />
+            <span>Query</span>
           </Button>
         </div>
       </form>

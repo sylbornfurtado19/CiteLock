@@ -18,32 +18,34 @@ export function DocumentTable({
 }) {
   if (documents.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-8 text-center text-slate-400 text-sm">
-        No documents uploaded to this workspace yet.
+      <div className="rounded-2xl border border-purple-900/25 bg-[#100A1C]/60 p-12 text-center text-[#8D829F] text-sm backdrop-blur-md">
+        No documents uploaded to this workspace yet. Upload reference files to begin grounded auditing.
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/40">
-      <table className="w-full text-left text-sm text-slate-300">
-        <thead className="border-b border-slate-800 bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400">
+    <div className="overflow-x-auto rounded-2xl border border-purple-900/30 bg-[#100A1C]/75 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md">
+      <table className="w-full text-left text-sm text-[#F5F0FF]">
+        <thead className="border-b border-purple-900/40 bg-[#0B0616]/90 text-xs font-mono uppercase tracking-wider text-[#B0A4C3]">
           <tr>
-            <th className="px-4 py-3">Document Name</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Size</th>
-            <th className="px-4 py-3">MIME</th>
-            <th className="px-4 py-3 text-right">Actions</th>
+            <th className="px-4 sm:px-6 py-3.5">Document Name</th>
+            <th className="px-4 py-3.5">Status</th>
+            <th className="px-4 py-3.5">Size</th>
+            <th className="px-4 py-3.5">Format</th>
+            <th className="px-4 sm:px-6 py-3.5 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/60">
+        <tbody className="divide-y divide-purple-900/20">
           {documents.map((doc) => (
-            <tr key={doc.id} className="hover:bg-slate-850/50 transition-colors">
-              <td className="px-4 py-3.5 flex items-center gap-2 font-medium text-white">
-                <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+            <tr key={doc.id} className="hover:bg-purple-950/25 transition-colors">
+              <td className="px-4 sm:px-6 py-4 flex items-center gap-2.5 font-medium text-[#F5F0FF]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300 shrink-0">
+                  <FileText className="h-3.5 w-3.5" />
+                </div>
                 <span className="truncate max-w-xs">{doc.filename}</span>
               </td>
-              <td className="px-4 py-3.5">
+              <td className="px-4 py-4">
                 <Badge
                   variant={
                     doc.status === "indexed"
@@ -56,18 +58,19 @@ export function DocumentTable({
                   {doc.status}
                 </Badge>
               </td>
-              <td className="px-4 py-3.5 text-xs text-slate-400 font-mono">
+              <td className="px-4 py-4 text-xs text-[#8D829F] font-mono">
                 {formatBytes(doc.file_size_bytes)}
               </td>
-              <td className="px-4 py-3.5 text-xs text-slate-400 font-mono">
+              <td className="px-4 py-4 text-xs text-[#8D829F] font-mono uppercase">
                 {doc.mime_type.split("/")[1] || doc.mime_type}
               </td>
-              <td className="px-4 py-3.5 text-right space-x-2">
+              <td className="px-4 sm:px-6 py-4 text-right space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onViewSource(doc)}
                   title="View Document via Signed URL"
+                  className="text-xs"
                 >
                   <ExternalLink className="h-3.5 w-3.5 mr-1" />
                   View
@@ -76,7 +79,7 @@ export function DocumentTable({
                   variant="ghost"
                   size="sm"
                   onClick={() => onDeleteDocument(doc.id)}
-                  className="text-red-400 hover:text-red-300"
+                  className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 text-xs"
                   title="Delete Document"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

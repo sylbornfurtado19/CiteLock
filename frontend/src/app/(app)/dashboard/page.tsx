@@ -51,10 +51,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Auditor Dashboard</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-[#F5F0FF]">Auditor Dashboard</h1>
+          <p className="text-sm text-[#B0A4C3] mt-1">
             Real-time hallucination tracking, claim distribution, and citation fidelity metrics.
           </p>
         </div>
@@ -63,20 +63,20 @@ export default function DashboardPage() {
           size="sm"
           onClick={fetchAnalytics}
           disabled={loading}
-          className="text-xs"
+          className="text-xs self-start sm:self-auto"
         >
           {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
           ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300" />
           )}
-          Refresh
+          Refresh Metrics
         </Button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-4 text-sm text-red-300 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0" />
+        <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 text-sm text-rose-300 flex items-center gap-2.5 backdrop-blur-md">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
@@ -125,25 +125,27 @@ export default function DashboardPage() {
           />
         </div>
 
-        <Card className="border-slate-800 bg-slate-900/50">
+        <Card className="rounded-xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6">
           <CardHeader>
-            <CardTitle className="text-base">Operational Pipeline Status</CardTitle>
+            <CardTitle className="text-base font-semibold text-[#F5F0FF]">
+              Operational Pipeline Status
+            </CardTitle>
           </CardHeader>
-          <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-400">Database Engine</span>
-              <span className="font-mono text-emerald-400">Neon Postgres + pgvector</span>
+          <div className="space-y-2.5 text-xs">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
+              <span className="text-[#B0A4C3]">Database Engine</span>
+              <span className="font-mono text-purple-300">Neon Postgres + pgvector</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-400">Storage Provider</span>
-              <span className="font-mono text-emerald-400">Firebase Storage (Private)</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
+              <span className="text-[#B0A4C3]">Storage Provider</span>
+              <span className="font-mono text-purple-300">Firebase Storage (Private)</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-400">Judge Provider</span>
-              <span className="font-mono text-emerald-400">Remote API (RAM Safe)</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
+              <span className="text-[#B0A4C3]">Judge Provider</span>
+              <span className="font-mono text-purple-300">Remote API (RAM Safe)</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-400">Average Latency</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
+              <span className="text-[#B0A4C3]">Average Latency</span>
               <span className="font-mono text-white">
                 {analytics?.avg_latency_ms ? `${Math.round(analytics.avg_latency_ms)} ms` : "0 ms"}
               </span>

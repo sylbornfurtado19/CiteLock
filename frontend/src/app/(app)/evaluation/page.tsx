@@ -31,15 +31,15 @@ export default function EvaluationPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Evaluation Benchmarks</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-[#F5F0FF]">Evaluation Benchmarks</h1>
+          <p className="text-sm text-[#B0A4C3] mt-1">
             Compare CiteLock against industry RAG baselines across hallucination reduction and citation precision.
           </p>
         </div>
-        <Button>
-          <Play className="h-4 w-4 mr-2" />
+        <Button className="self-start sm:self-auto gap-2">
+          <Play className="h-4 w-4" />
           Run Benchmark Suite
         </Button>
       </div>
@@ -48,45 +48,49 @@ export default function EvaluationPage() {
         {baselines.map((b) => (
           <Card
             key={b.name}
-            className={`flex flex-col justify-between ${
+            className={`flex flex-col justify-between rounded-2xl transition-all ${
               b.highlight
-                ? "border-emerald-600/60 bg-emerald-950/20 shadow-lg shadow-emerald-950/40"
-                : "border-slate-800 bg-slate-900/40"
+                ? "border border-purple-500/50 bg-[#140D26]/90 shadow-[0_0_32px_rgba(139,92,246,0.22)] ring-1 ring-purple-400/30"
+                : "border border-purple-900/30 bg-[#100A1C]/75 shadow-sm"
             }`}
           >
             <div>
               <CardHeader>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono uppercase text-emerald-400">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span
+                    className={`text-xs font-mono uppercase tracking-wider ${
+                      b.highlight ? "text-purple-300 font-bold" : "text-[#8D829F]"
+                    }`}
+                  >
                     {b.highlight ? "Active Engine" : "Baseline"}
                   </span>
-                  {b.highlight && <Award className="h-4 w-4 text-emerald-400" />}
+                  {b.highlight && <Award className="h-4 w-4 text-purple-300" />}
                 </div>
-                <CardTitle className="text-base text-white">{b.name}</CardTitle>
-                <CardDescription className="text-xs">{b.description}</CardDescription>
+                <CardTitle className="text-base text-[#F5F0FF]">{b.name}</CardTitle>
+                <CardDescription className="text-xs text-[#B0A4C3]">{b.description}</CardDescription>
               </CardHeader>
 
-              <div className="space-y-3 pt-2 text-xs">
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Hallucination Rate</span>
+              <div className="space-y-2.5 pt-2 text-xs">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#070311] border border-purple-900/30">
+                  <span className="text-[#B0A4C3]">Hallucination Rate</span>
                   <span className={`font-mono font-bold ${b.highlight ? "text-emerald-400" : "text-slate-300"}`}>
                     {b.hallucinationRate}
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Faithfulness F1</span>
-                  <span className="font-mono text-slate-200">{b.faithfulness}</span>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#070311] border border-purple-900/30">
+                  <span className="text-[#B0A4C3]">Faithfulness F1</span>
+                  <span className="font-mono text-[#F5F0FF]">{b.faithfulness}</span>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-400">Avg Execution Time</span>
-                  <span className="font-mono text-slate-400">{b.latency}</span>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#070311] border border-purple-900/30">
+                  <span className="text-[#B0A4C3]">Avg Execution Time</span>
+                  <span className="font-mono text-[#8D829F]">{b.latency}</span>
                 </div>
               </div>
             </div>
 
             {b.highlight && (
-              <div className="mt-4 pt-3 border-t border-emerald-900/50 flex items-center gap-1.5 text-xs text-emerald-300">
-                <CheckCircle2 className="h-4 w-4" />
+              <div className="mt-4 pt-3.5 border-t border-purple-500/30 flex items-center gap-2 text-xs text-purple-200 font-medium">
+                <CheckCircle2 className="h-4 w-4 text-purple-300 shrink-0" />
                 <span>91.4% Hallucination Reduction over Baseline A</span>
               </div>
             )}

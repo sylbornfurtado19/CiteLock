@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "CiteLock - Self-Correcting RAG & Hallucination Auditor",
@@ -13,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
+    <html lang="en" className={`dark ${inter.variable}`}>
+      <body className={`${inter.className} min-h-screen bg-[#05020D] text-[#F5F0FF] antialiased selection:bg-purple-600 selection:text-white`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
