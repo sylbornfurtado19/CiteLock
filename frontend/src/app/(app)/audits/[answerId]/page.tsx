@@ -121,7 +121,7 @@ export default function AuditDetailPage() {
           size="sm"
           onClick={handleExport}
           disabled={exporting}
-          className="self-start sm:self-auto gap-2 text-xs"
+          className="self-start sm:self-auto gap-2 text-xs active:scale-95 transition-all duration-150"
         >
           {exporting ? (
             <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
@@ -133,7 +133,7 @@ export default function AuditDetailPage() {
       </div>
 
       {/* Query Banner */}
-      <div className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md space-y-1.5">
+      <div className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md space-y-1.5 animate-fade-in-up hover-card-glow transition-all duration-200">
         <span className="text-xs font-mono font-medium uppercase tracking-wider text-purple-400 block">
           Audited Query Prompt
         </span>

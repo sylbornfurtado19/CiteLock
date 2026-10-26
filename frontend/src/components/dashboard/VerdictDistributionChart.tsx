@@ -7,7 +7,14 @@ export function VerdictDistributionChart({
 }: {
   distribution: Record<Verdict, number>;
 }) {
+  const [mounted, setMounted] = React.useState(false);
   const total = Object.values(distribution).reduce((a, b) => a + b, 0) || 1;
+
+  React.useEffect(() => {
+    // Trigger smooth expansion after mount
+    const timer = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const items: { label: string; count: number; color: string; verdict: Verdict }[] = [
     { label: "Supported", count: distribution.supported || 0, color: "bg-emerald-500", verdict: "supported" },
@@ -29,14 +36,15 @@ export function VerdictDistributionChart({
         {/* Progress bar stack */}
         <div className="flex h-3.5 w-full overflow-hidden rounded-full bg-[#070311] border border-purple-900/40 p-0.5">
           {items.map((item) => {
-            const pct = (item.count / total) * 100;
-            if (pct === 0) return null;
+            const rawPct = (item.count / total) * 100;
+            if (rawPct === 0) return null;
+            const displayPct = mounted ? rawPct : 0;
             return (
               <div
                 key={item.verdict}
-                style={{ width: `${pct}%` }}
-                className={`${item.color} h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 shadow-sm`}
-                title={`${item.label}: ${item.count} (${Math.round(pct)}%)`}
+                style={{ width: `${displayPct}%` }}
+                className={`${item.color} h-full first:rounded-l-full last:rounded-r-full transition-all duration-700 ease-out shadow-sm`}
+                title={`${item.label}: ${item.count} (${Math.round(rawPct)}%)`}
               />
             );
           })}
@@ -45,9 +53,9 @@ export function VerdictDistributionChart({
         {/* Legend */}
         <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-3">
           {items.map((item) => (
-            <div key={item.verdict} className="flex items-center gap-2 text-xs">
-              <span className={`h-2.5 w-2.5 rounded-full ${item.color} shadow-[0_0_8px_currentColor]`} />
-              <span className="text-[#B0A4C3]">{item.label}:</span>
+            <div key={item.verdict} className="flex items-center gap-2 text-xs group cursor-default hover:text-white transition-colors duration-150">
+              <span className={`h-2.5 w-2.5 rounded-full ${item.color} shadow-[0_0_8px_currentColor] group-hover:scale-110 transition-transform duration-150`} />
+              <span className="text-[#B0A4C3] group-hover:text-purple-200 transition-colors duration-150">{item.label}:</span>
               <span className="font-mono font-semibold text-[#F5F0FF]">{item.count}</span>
             </div>
           ))}

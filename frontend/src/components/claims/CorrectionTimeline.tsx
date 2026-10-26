@@ -23,19 +23,19 @@ export function CorrectionTimeline({
         </span>
       </div>
 
-      <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-purple-500/60 before:via-violet-500/60 before:to-emerald-500/60">
+      <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-purple-500/60 before:via-violet-500/60 before:to-emerald-500/60 before:transition-all before:duration-500">
         {/* Draft Stage */}
-        <div className="relative">
-          <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-purple-900 border-2 border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+        <div className="relative animate-fade-in-up animation-delay-75">
+          <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-purple-900 border-2 border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-transform duration-200 hover:scale-125" />
           <span className="text-xs font-mono text-purple-300">Stage 1: Raw Draft Generation</span>
-          <div className="mt-1.5 p-3.5 rounded-xl border border-purple-900/35 bg-[#070311] text-xs text-[#B0A4C3] leading-relaxed">
+          <div className="mt-1.5 p-3.5 rounded-xl border border-purple-900/35 bg-[#070311] text-xs text-[#B0A4C3] leading-relaxed hover:border-purple-500/30 transition-colors">
             {draftText}
           </div>
         </div>
 
         {/* Correction Stage */}
-        <div className="relative">
-          <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+        <div className="relative animate-fade-in-up animation-delay-150">
+          <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.5)] transition-transform duration-200 hover:scale-125" />
           <div className="flex items-center gap-1.5 text-xs font-mono text-amber-300">
             <RefreshCw className="h-3 w-3" />
             <span>Stage 2: Claim Auditing & Bounded Correction</span>
@@ -46,9 +46,9 @@ export function CorrectionTimeline({
         </div>
 
         {/* Final Verified Answer */}
-        <div className="relative">
+        <div className="relative animate-fade-in-up animation-delay-250">
           <div
-            className={`absolute -left-6 top-1 h-3 w-3 rounded-full border-2 border-[#05020D] ${
+            className={`absolute -left-6 top-1 h-3 w-3 rounded-full border-2 border-[#05020D] transition-transform duration-200 hover:scale-125 ${
               isAbstained
                 ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
                 : "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
@@ -68,10 +68,10 @@ export function CorrectionTimeline({
             )}
           </div>
           <div
-            className={`mt-1.5 p-4 rounded-xl text-xs leading-relaxed ${
+            className={`mt-1.5 p-4 rounded-xl text-xs leading-relaxed transition-all duration-200 ${
               isAbstained
                 ? "border border-rose-500/30 bg-rose-950/25 text-rose-200"
-                : "border border-purple-500/30 bg-[#120B22] text-[#F5F0FF] shadow-[0_0_20px_rgba(139,92,246,0.15)]"
+                : "border border-purple-500/30 bg-[#120B22] text-[#F5F0FF] shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:border-purple-500/50"
             }`}
           >
             {finalText}

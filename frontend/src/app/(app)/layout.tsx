@@ -57,14 +57,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             key={item.label}
             href={item.href}
             onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 active:scale-[0.98] ${
               isActive
-                ? "bg-purple-950/70 text-purple-200 border border-purple-500/35 shadow-[0_0_14px_rgba(139,92,246,0.18)]"
-                : "text-[#B0A4C3] hover:text-white hover:bg-purple-950/30"
+                ? "bg-purple-950/70 text-purple-200 border border-purple-500/35 shadow-[0_0_14px_rgba(139,92,246,0.2)] pl-4"
+                : "text-[#B0A4C3] hover:text-white hover:bg-purple-950/30 hover:translate-x-0.5"
             }`}
           >
+            {isActive && (
+              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 h-4 w-1 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+            )}
             <Icon
-              className={`h-4 w-4 ${
+              className={`h-4 w-4 transition-colors duration-150 ${
                 isActive ? "text-purple-300 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" : "text-[#8D829F]"
               }`}
             />
@@ -158,12 +161,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 md:hidden flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
             onClick={() => setMobileOpen(false)}
           />
 
           {/* Drawer Content */}
-          <div className="relative w-72 max-w-[80vw] bg-[#0B0616] border-r border-purple-900/40 flex flex-col justify-between h-full z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+          <div className="relative w-72 max-w-[80vw] bg-[#0B0616] border-r border-purple-900/40 flex flex-col justify-between h-full z-10 shadow-2xl animate-in slide-in-from-left duration-250 ease-out">
             <div>
               <div className="flex items-center justify-between px-5 py-4 border-b border-purple-900/30">
                 <div className="flex items-center gap-2">
@@ -173,7 +176,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={() => setMobileOpen(false)}
                   aria-label="Close Navigation Drawer"
-                  className="p-1 text-purple-300 hover:text-white"
+                  className="p-1.5 rounded-lg text-purple-300 hover:text-white hover:bg-purple-950/60 transition-all duration-150 active:scale-90"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -193,7 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 onClick={() => logout()}
                 title="Log Out"
                 aria-label="Log Out"
-                className="rounded-lg p-2 text-purple-300 hover:bg-purple-950 hover:text-white"
+                className="rounded-lg p-2 text-purple-300 hover:bg-purple-950/80 hover:text-white transition-all duration-150 active:scale-90"
               >
                 <LogOut className="h-4 w-4" />
               </button>

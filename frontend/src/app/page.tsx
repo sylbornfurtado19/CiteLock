@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Shield,
@@ -24,18 +24,44 @@ import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [featuresVisible, setFeaturesVisible] = useState(false);
+  const featuresRef = React.useRef<HTMLElement | null>(null);
+
+  // Reveal feature grid when scrolled into viewport with safety timeout
+  useEffect(() => {
+    // Safety fallback so content is never hidden if observer doesn't fire
+    const fallbackTimer = setTimeout(() => setFeaturesVisible(true), 1200);
+
+    if (!featuresRef.current) return () => clearTimeout(fallbackTimer);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setFeaturesVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(featuresRef.current);
+    return () => {
+      clearTimeout(fallbackTimer);
+      observer.disconnect();
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#05020D] text-[#F5F0FF] overflow-x-hidden selection:bg-purple-600 selection:text-white">
       {/* Background Radial Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[650px] bg-ambient-hero pointer-events-none z-0" />
 
-      {/* Floating Header */}
-      <header className="sticky top-0 z-50 w-full px-4 sm:px-8 pt-4 pb-2">
+      {/* Floating Header with subtle entrance */}
+      <header className="sticky top-0 z-50 w-full px-4 sm:px-8 pt-4 pb-2 animate-fade-in-down">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/30 shadow-[0_0_16px_rgba(139,92,246,0.3)] transition-transform group-hover:scale-105">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/30 shadow-[0_0_16px_rgba(139,92,246,0.3)] transition-transform duration-200 group-hover:scale-105">
               <Shield className="h-5 w-5 text-purple-300" />
             </div>
             <div className="flex flex-col">
@@ -52,31 +78,31 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-1.5 rounded-full border border-purple-500/20 bg-[#100A1C]/80 px-5 py-1.5 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
             <a
               href="#features"
-              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors"
+              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors duration-150"
             >
               Features
             </a>
             <Link
               href="/dashboard"
-              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors"
+              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors duration-150"
             >
               Dashboard
             </Link>
             <Link
               href="/chat"
-              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors"
+              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors duration-150"
             >
               Grounded Chat
             </Link>
             <Link
               href="/documents"
-              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors"
+              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors duration-150"
             >
               Vault
             </Link>
             <Link
               href="/evaluation"
-              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors"
+              className="px-3 py-1 text-xs font-medium text-[#B0A4C3] hover:text-white transition-colors duration-150"
             >
               Benchmarks
             </Link>
@@ -99,7 +125,7 @@ export default function LandingPage() {
           {/* Mobile Menu Trigger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-purple-500/25 bg-[#100A1C] text-purple-300 hover:text-white"
+            className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-purple-500/25 bg-[#100A1C] text-purple-300 hover:text-white transition-colors duration-150 active:scale-95"
             aria-label="Toggle Navigation Menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -113,35 +139,35 @@ export default function LandingPage() {
               <a
                 href="#features"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40"
+                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40 transition-colors"
               >
                 Features
               </a>
               <Link
                 href="/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40"
+                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40 transition-colors"
               >
                 Dashboard
               </Link>
               <Link
                 href="/chat"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40"
+                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40 transition-colors"
               >
                 Grounded Chat
               </Link>
               <Link
                 href="/documents"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40"
+                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40 transition-colors"
               >
                 Document Vault
               </Link>
               <Link
                 href="/evaluation"
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40"
+                className="px-3 py-2 text-sm text-[#B0A4C3] hover:text-white rounded-lg hover:bg-purple-950/40 transition-colors"
               >
                 Evaluation Benchmarks
               </Link>
@@ -165,31 +191,31 @@ export default function LandingPage() {
       {/* Main Hero Section */}
       <main className="flex-1">
         <section className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-16 sm:pt-24 pb-12 text-center">
-          {/* Announcement Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-950/40 px-3.5 py-1 text-xs font-medium text-purple-200 shadow-[0_0_16px_rgba(168,85,247,0.2)] mb-8">
+          {/* Announcement Badge - Step 2 */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/30 bg-purple-950/40 px-3.5 py-1 text-xs font-medium text-purple-200 shadow-[0_0_16px_rgba(168,85,247,0.2)] mb-8 animate-fade-in-up animation-delay-100 hover:border-purple-400/50 transition-colors cursor-default">
             <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
             <span>SELF-CORRECTING RAG VERIFICATION</span>
           </div>
 
-          {/* Large Hero Display Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#F5F0FF] max-w-4xl mx-auto leading-[1.1]">
+          {/* Large Hero Display Headline - Step 3 */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#F5F0FF] max-w-4xl mx-auto leading-[1.1] animate-fade-in-up animation-delay-200">
             Ground every answer with{" "}
             <span className="bg-gradient-to-r from-purple-300 via-violet-300 to-indigo-200 bg-clip-text text-transparent">
               CiteLock.
             </span>
           </h1>
 
-          {/* Supporting Text */}
-          <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg text-[#B0A4C3] leading-relaxed">
+          {/* Supporting Text - Step 4 */}
+          <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg text-[#B0A4C3] leading-relaxed animate-fade-in-up animation-delay-300">
             Verify claims, trace evidence, and audit every correction before responses reach users.
           </p>
 
-          {/* Hero CTAs */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+          {/* Hero CTAs - Step 5 */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up animation-delay-400">
             <Link href="/dashboard">
-              <Button size="lg" className="gap-2 text-sm shadow-[0_0_30px_rgba(139,92,246,0.45)]">
+              <Button size="lg" className="gap-2 text-sm shadow-[0_0_30px_rgba(139,92,246,0.45)] hover:shadow-[0_0_40px_rgba(168,85,247,0.55)]">
                 Get Started
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </Button>
             </Link>
             <Link href="/login">
@@ -201,18 +227,18 @@ export default function LandingPage() {
 
           {/* Luminous Neon Arch / Halo Visual Behind Product Preview */}
           <div className="relative mt-20 sm:mt-28">
-            {/* The Elliptical Luminous Purple Halo */}
-            <div className="neon-halo-arch -top-24 sm:-top-32" />
-            <div className="neon-halo-rim -top-16 sm:-top-24" />
+            {/* The Elliptical Luminous Purple Halo with gentle ambient breathing */}
+            <div className="neon-halo-arch -top-24 sm:-top-32 animate-halo-pulse pointer-events-none" />
+            <div className="neon-halo-rim -top-16 sm:-top-24 animate-halo-pulse pointer-events-none" />
 
-            {/* Product-Preview Console Window */}
-            <div className="relative z-10 mx-auto max-w-5xl rounded-2xl border border-purple-500/25 bg-[#0D0719]/90 backdrop-blur-2xl p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.85)] text-left">
+            {/* Product-Preview Console Window - Step 7: Settles into position smoothly */}
+            <div className="relative z-10 mx-auto max-w-5xl rounded-2xl border border-purple-500/25 bg-[#0D0719]/90 backdrop-blur-2xl p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.85)] text-left animate-fade-in-up animation-delay-500 hover:border-purple-500/35 transition-colors duration-300">
               {/* Console Window Header */}
               <div className="flex items-center justify-between border-b border-purple-900/40 pb-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-rose-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
+                  <div className="h-3 w-3 rounded-full bg-rose-500/80 transition-transform hover:scale-110" />
+                  <div className="h-3 w-3 rounded-full bg-amber-500/80 transition-transform hover:scale-110" />
+                  <div className="h-3 w-3 rounded-full bg-emerald-500/80 transition-transform hover:scale-110" />
                   <span className="ml-2 text-xs font-mono text-[#8D829F]">
                     citelock-auditor // workspace-001
                   </span>
@@ -231,9 +257,9 @@ export default function LandingPage() {
                 <div className="lg:col-span-4 rounded-xl border border-purple-900/30 bg-[#100A1C]/70 p-3.5 space-y-3">
                   <div className="flex items-center justify-between text-[11px] font-mono text-purple-300">
                     <span>SOURCE EVIDENCE</span>
-                    <span className="text-emerald-400">pgvector cosine: 0.984</span>
+                    <span className="text-emerald-400 font-medium">pgvector cosine: 0.984</span>
                   </div>
-                  <div className="rounded-lg border border-purple-900/40 bg-[#070311] p-3 text-xs space-y-1.5">
+                  <div className="rounded-lg border border-purple-900/40 bg-[#070311] p-3 text-xs space-y-1.5 hover:border-purple-500/30 transition-colors">
                     <div className="flex items-center justify-between text-[10px] text-[#8D829F] font-mono">
                       <span>Chunk #8b1c4e</span>
                       <span>10-K_Annual_Report.pdf</span>
@@ -242,7 +268,7 @@ export default function LandingPage() {
                       &ldquo;Q3 enterprise operational revenue expanded by 14.2% YoY, driven by multi-year cloud compliance agreements.&rdquo;
                     </p>
                   </div>
-                  <div className="rounded-lg border border-purple-900/40 bg-[#070311] p-3 text-xs space-y-1.5">
+                  <div className="rounded-lg border border-purple-900/40 bg-[#070311] p-3 text-xs space-y-1.5 hover:border-purple-500/30 transition-colors">
                     <div className="flex items-center justify-between text-[10px] text-[#8D829F] font-mono">
                       <span>Chunk #a90f22</span>
                       <span>Balance_Sheet_Q3.pdf</span>
@@ -259,19 +285,19 @@ export default function LandingPage() {
                     <span className="text-xs font-semibold text-purple-200">
                       SYNTHESIZED DRAFT & CLAIM VERIFICATION
                     </span>
-                    <span className="text-xs font-mono text-emerald-400">
+                    <span className="text-xs font-mono text-emerald-400 font-medium">
                       Hallucination Rate: 0.0%
                     </span>
                   </div>
 
                   {/* Verified Text Excerpt */}
-                  <div className="rounded-lg border border-purple-900/30 bg-[#070311] p-3.5 text-xs text-purple-100 leading-relaxed">
+                  <div className="rounded-lg border border-purple-900/30 bg-[#070311] p-3.5 text-xs text-purple-100 leading-relaxed hover:border-purple-500/30 transition-colors">
                     According to the audited Q3 reports, enterprise operational revenue expanded by 14.2% year-over-year. Operating expenditures remained within the forecasted $4.2M envelope, corroborated by multi-year cloud compliance contracts.
                   </div>
 
                   {/* Decomposed Atomic Claims */}
                   <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-2.5 text-xs">
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-2.5 text-xs hover:border-emerald-500/40 transition-colors">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span className="text-slate-200">
@@ -283,7 +309,7 @@ export default function LandingPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-2.5 text-xs">
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-950/20 p-2.5 text-xs hover:border-emerald-500/40 transition-colors">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                         <span className="text-slate-200">
@@ -295,7 +321,7 @@ export default function LandingPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between rounded-lg border border-purple-500/25 bg-purple-950/20 p-2.5 text-xs">
+                    <div className="flex items-center justify-between rounded-lg border border-purple-500/25 bg-purple-950/20 p-2.5 text-xs hover:border-purple-500/40 transition-colors">
                       <div className="flex items-center gap-2">
                         <RefreshCw className="h-3.5 w-3.5 text-purple-300 shrink-0" />
                         <span className="text-slate-200">
@@ -313,10 +339,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 8-Item Feature Grid */}
-        <section id="features" className="border-t border-purple-900/25 bg-[#080412]/50 py-24">
+        {/* 8-Item Feature Grid with Progressive Scroll Reveal */}
+        <section
+          id="features"
+          ref={featuresRef}
+          className="border-t border-purple-900/25 bg-[#080412]/50 py-24 transition-opacity duration-500"
+        >
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className={`text-center max-w-3xl mx-auto mb-16 transition-all duration-500 ${featuresVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
               <span className="text-xs font-mono uppercase tracking-widest text-purple-400 block mb-2">
                 ARCHITECTURAL CAPABILITIES
               </span>
@@ -330,109 +360,69 @@ export default function LandingPage() {
 
             {/* The 8 Items Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Item 1 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Claim-Level Verification
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Break generated answers into verifiable atomic claims with structured LLM judges.
-                </p>
-              </div>
-
-              {/* Item 2 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <FileSearch className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Source-Linked Evidence
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Inspect evidence associated with individual claims with exact character offsets.
-                </p>
-              </div>
-
-              {/* Item 3 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <RefreshCw className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Self-Correcting Answers
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Review the bounded correction process that critiques failed assertions in real time.
-                </p>
-              </div>
-
-              {/* Item 4 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <Database className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Document Vault
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Manage documents streamed directly to private storage and embedded in pgvector.
-                </p>
-              </div>
-
-              {/* Item 5 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <MessageSquare className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Grounded Q&A
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Submit questions and inspect verified answers with full citation provenance.
-                </p>
-              </div>
-
-              {/* Item 6 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <SlidersHorizontal className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Audit Trails
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Examine claims, verdicts, corrections, and export compliance-ready JSON logs.
-                </p>
-              </div>
-
-              {/* Item 7 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <FlaskConical className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Evaluation Benchmarks
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Compare CiteLock against plain RAG and single-pass baselines across hallucination metrics.
-                </p>
-              </div>
-
-              {/* Item 8 */}
-              <div className="rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover:border-purple-500/30 hover:bg-[#171025]/80 transition-all">
-                <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4">
-                  <CheckCircle className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold text-white mb-1.5">
-                  Governance Controls
-                </h3>
-                <p className="text-xs text-[#B0A4C3] leading-relaxed">
-                  Review the existing system policies, maximum retry limits, and abstention thresholds.
-                </p>
-              </div>
+              {[
+                {
+                  icon: ShieldCheck,
+                  title: "Claim-Level Verification",
+                  desc: "Break generated answers into verifiable atomic claims with structured LLM judges.",
+                },
+                {
+                  icon: FileSearch,
+                  title: "Source-Linked Evidence",
+                  desc: "Inspect evidence associated with individual claims with exact character offsets.",
+                },
+                {
+                  icon: RefreshCw,
+                  title: "Self-Correcting Answers",
+                  desc: "Review the bounded correction process that critiques failed assertions in real time.",
+                },
+                {
+                  icon: Database,
+                  title: "Document Vault",
+                  desc: "Manage documents streamed directly to private storage and embedded in pgvector.",
+                },
+                {
+                  icon: MessageSquare,
+                  title: "Grounded Q&A",
+                  desc: "Submit questions and inspect verified answers with full citation provenance.",
+                },
+                {
+                  icon: SlidersHorizontal,
+                  title: "Audit Trails",
+                  desc: "Examine claims, verdicts, corrections, and export compliance-ready JSON logs.",
+                },
+                {
+                  icon: FlaskConical,
+                  title: "Evaluation Benchmarks",
+                  desc: "Compare CiteLock against plain RAG and single-pass baselines across hallucination metrics.",
+                },
+                {
+                  icon: CheckCircle,
+                  title: "Governance Controls",
+                  desc: "Review the existing system policies, maximum retry limits, and abstention thresholds.",
+                },
+              ].map((item, idx) => {
+                const ItemIcon = item.icon;
+                return (
+                  <div
+                    key={item.title}
+                    style={{ transitionDelay: `${idx * 60}ms` }}
+                    className={`rounded-xl border border-purple-900/25 bg-[#100A1C]/60 p-6 hover-card-glow group cursor-default transition-all duration-500 ${
+                      featuresVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+                    }`}
+                  >
+                    <div className="h-10 w-10 rounded-lg bg-purple-950/70 border border-purple-800/50 flex items-center justify-center text-purple-300 mb-4 group-hover:scale-110 group-hover:border-purple-500/40 group-hover:text-purple-200 transition-all duration-200">
+                      <ItemIcon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-purple-100 transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-[#B0A4C3] leading-relaxed">
+                      {item.desc}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

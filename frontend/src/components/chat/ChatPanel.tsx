@@ -78,17 +78,19 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex gap-3 animate-fade-in-up duration-250 ${
+              msg.sender === "user" ? "justify-end" : "justify-start"
+            }`}
           >
             {msg.sender === "assistant" && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0 transition-transform hover:scale-105">
                 <Bot className="h-4 w-4" />
               </div>
             )}
             <div className="max-w-2xl">
               {msg.text && (
                 <div
-                  className={`rounded-2xl p-4 text-sm leading-relaxed ${
+                  className={`rounded-2xl p-4 text-sm leading-relaxed transition-all duration-200 ${
                     msg.sender === "user"
                       ? "bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-[0_4px_18px_rgba(139,92,246,0.3)]"
                       : "bg-[#0B0616]/90 text-[#F5F0FF] border border-purple-900/35 rounded-tl-sm shadow-sm"
@@ -104,7 +106,7 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           </div>
         ))}
         {loading && (
-          <div className="flex items-center gap-2.5 text-xs text-purple-300 font-mono py-1">
+          <div className="flex items-center gap-2.5 text-xs text-purple-300 font-mono py-1 animate-fade-in">
             <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
             <span>Auditing claims & verifying source provenance against pgvector...</span>
           </div>
@@ -119,10 +121,10 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question about your indexed documents..."
-            className="flex-1 rounded-xl border border-purple-900/40 bg-[#070311] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder:text-[#8D829F] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all"
+            className="flex-1 rounded-xl border border-purple-900/40 bg-[#070311] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder:text-[#8D829F] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-200"
             disabled={loading}
           />
-          <Button type="submit" disabled={loading || !input.trim()} className="gap-1.5">
+          <Button type="submit" disabled={loading || !input.trim()} className="gap-1.5 active:scale-95 transition-transform duration-150">
             <Sparkles className="h-4 w-4" />
             <span>Query</span>
           </Button>

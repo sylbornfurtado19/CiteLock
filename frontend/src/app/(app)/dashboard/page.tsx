@@ -63,54 +63,58 @@ export default function DashboardPage() {
           size="sm"
           onClick={fetchAnalytics}
           disabled={loading}
-          className="text-xs self-start sm:self-auto"
+          className="text-xs self-start sm:self-auto group active:scale-95 transition-all duration-150"
         >
           {loading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
           ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300" />
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300 group-hover:rotate-45 transition-transform duration-200" />
           )}
           Refresh Metrics
         </Button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 text-sm text-rose-300 flex items-center gap-2.5 backdrop-blur-md">
+        <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 text-sm text-rose-300 flex items-center gap-2.5 backdrop-blur-md animate-fade-in">
           <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* KPI Cards */}
+      {/* KPI Cards with Staggered Entrance */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Overall Grounding Rate"
           value={loading ? "--" : groundingRate}
           icon={ShieldCheck}
           description="Claims verified by citation proof"
+          className="animate-fade-in-up"
         />
         <StatCard
           title="Indexed Documents"
           value={loading ? "--" : (analytics?.total_documents ?? 0).toString()}
           icon={Database}
           description="Private storage objects"
+          className="animate-fade-in-up animation-delay-75"
         />
         <StatCard
           title="Total Claims Evaluated"
           value={loading ? "--" : totalClaims.toString()}
           icon={FileCheck}
           description="Atomic propositions extracted"
+          className="animate-fade-in-up animation-delay-150"
         />
         <StatCard
           title="Hallucination Interceptions"
           value={loading ? "--" : hallucinationCount.toString()}
           icon={AlertCircle}
           description="Contradicted or unsupported claims"
+          className="animate-fade-in-up animation-delay-200"
         />
       </div>
 
       {/* Charts & System State */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up animation-delay-300">
         <div className="lg:col-span-2">
           <VerdictDistributionChart
             distribution={

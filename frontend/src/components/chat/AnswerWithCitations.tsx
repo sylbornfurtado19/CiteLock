@@ -14,7 +14,7 @@ export function AnswerWithCitations({
   answer: Answer;
 }) {
   return (
-    <div className="rounded-2xl border border-purple-500/30 bg-[#120B22]/90 p-5 space-y-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+    <div className="rounded-2xl border border-purple-500/30 bg-[#120B22]/90 p-5 space-y-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] backdrop-blur-md hover:border-purple-500/50 hover:shadow-[0_8px_32px_rgba(139,92,246,0.2)] transition-all duration-200 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-mono font-medium tracking-wide text-purple-300">
           <div className="flex h-5 w-5 items-center justify-center rounded-md bg-purple-950 border border-purple-500/40">
@@ -26,10 +26,10 @@ export function AnswerWithCitations({
           <Button
             variant="ghost"
             size="sm"
-            className="text-purple-300 hover:text-white text-xs bg-purple-950/40 border border-purple-500/20 hover:border-purple-400/40"
+            className="text-purple-300 hover:text-white text-xs bg-purple-950/40 border border-purple-500/20 hover:border-purple-400/40 hover:-translate-y-0.5 transition-all duration-150 group"
           >
             Inspect Claims & Evidence
-            <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            <ArrowRight className="h-3.5 w-3.5 ml-1 transition-transform duration-200 group-hover:translate-x-1" />
           </Button>
         </Link>
       </div>

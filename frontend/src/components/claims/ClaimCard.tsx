@@ -35,7 +35,7 @@ export function ClaimCard({ claim }: { claim: Claim }) {
   };
 
   return (
-    <Card className={`space-y-3.5 border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-md rounded-2xl p-5 ${getBorderColor()}`}>
+    <Card className={`space-y-3.5 border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-md rounded-2xl p-5 hover:border-purple-500/40 hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.5)] transition-all duration-200 animate-fade-in-up cursor-default ${getBorderColor()}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
           {getIcon()}

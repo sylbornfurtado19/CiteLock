@@ -45,13 +45,14 @@ export default function EvaluationPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {baselines.map((b) => (
+        {baselines.map((b, idx) => (
           <Card
             key={b.name}
-            className={`flex flex-col justify-between rounded-2xl transition-all ${
+            style={{ animationDelay: `${idx * 100}ms` }}
+            className={`flex flex-col justify-between rounded-2xl transition-all duration-200 animate-fade-in-up hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(139,92,246,0.18)] ${
               b.highlight
-                ? "border border-purple-500/50 bg-[#140D26]/90 shadow-[0_0_32px_rgba(139,92,246,0.22)] ring-1 ring-purple-400/30"
-                : "border border-purple-900/30 bg-[#100A1C]/75 shadow-sm"
+                ? "border border-purple-500/50 bg-[#140D26]/90 shadow-[0_0_32px_rgba(139,92,246,0.22)] ring-1 ring-purple-400/30 hover:border-purple-400/70"
+                : "border border-purple-900/30 bg-[#100A1C]/75 shadow-sm hover:border-purple-500/40"
             }`}
           >
             <div>

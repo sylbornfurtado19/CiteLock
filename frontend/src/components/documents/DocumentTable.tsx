@@ -38,12 +38,12 @@ export function DocumentTable({
         </thead>
         <tbody className="divide-y divide-purple-900/20">
           {documents.map((doc) => (
-            <tr key={doc.id} className="hover:bg-purple-950/25 transition-colors">
+            <tr key={doc.id} className="hover:bg-purple-950/25 transition-colors duration-150 group">
               <td className="px-4 sm:px-6 py-4 flex items-center gap-2.5 font-medium text-[#F5F0FF]">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300 shrink-0">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300 shrink-0 group-hover:scale-110 group-hover:border-purple-400/50 transition-all duration-150">
                   <FileText className="h-3.5 w-3.5" />
                 </div>
-                <span className="truncate max-w-xs">{doc.filename}</span>
+                <span className="truncate max-w-xs group-hover:text-purple-100 transition-colors">{doc.filename}</span>
               </td>
               <td className="px-4 py-4">
                 <Badge
@@ -54,6 +54,7 @@ export function DocumentTable({
                       ? "danger"
                       : "warning"
                   }
+                  className={doc.status === "processing" || doc.status === "pending" ? "animate-pulse" : ""}
                 >
                   {doc.status}
                 </Badge>
@@ -70,7 +71,7 @@ export function DocumentTable({
                   size="sm"
                   onClick={() => onViewSource(doc)}
                   title="View Document via Signed URL"
-                  className="text-xs"
+                  className="text-xs active:scale-95 transition-all duration-150"
                 >
                   <ExternalLink className="h-3.5 w-3.5 mr-1" />
                   View
@@ -79,7 +80,7 @@ export function DocumentTable({
                   variant="ghost"
                   size="sm"
                   onClick={() => onDeleteDocument(doc.id)}
-                  className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 text-xs"
+                  className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 text-xs active:scale-90 transition-all duration-150"
                   title="Delete Document"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

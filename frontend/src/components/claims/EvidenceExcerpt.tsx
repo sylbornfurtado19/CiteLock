@@ -4,7 +4,7 @@ import { Quote } from "lucide-react";
 
 export function EvidenceExcerpt({ evidence }: { evidence: EvidenceLink }) {
   return (
-    <div className="rounded-xl border border-purple-900/35 bg-[#070311] p-3.5 text-xs text-[#F5F0FF] shadow-sm">
+    <div className="rounded-xl border border-purple-900/35 bg-[#070311] p-3.5 text-xs text-[#F5F0FF] shadow-sm hover:border-purple-500/40 hover:bg-[#090416] transition-all duration-150">
       <div className="flex items-center gap-2 mb-1.5 text-[#8D829F]">
         <Quote className="h-3.5 w-3.5 text-purple-400" />
         <span className="font-mono text-[10px] text-purple-300">

@@ -51,19 +51,46 @@ const config: Config = {
         "glow-halo": "0 0 100px 30px rgba(168, 85, 247, 0.35)",
         "inner-glow": "inset 0 1px 0 0 rgba(216, 180, 254, 0.2)",
       },
+      transitionTimingFunction: {
+        "out-expo": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "out-smooth": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      },
+      transitionDuration: {
+        "150": "150ms",
+        "200": "200ms",
+        "250": "250ms",
+        "350": "350ms",
+        "500": "500ms",
+        "700": "700ms",
+      },
       keyframes: {
         "halo-pulse": {
-          "0%, 100%": { opacity: "0.85", transform: "scale(1)" },
-          "50%": { opacity: "1", transform: "scale(1.02)" },
+          "0%, 100%": { opacity: "0.82", transform: "translateX(-50%) scale(1)" },
+          "50%": { opacity: "0.98", transform: "translateX(-50%) scale(1.02)" },
         },
         "fade-in-up": {
-          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "0%": { opacity: "0", transform: "translateY(14px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in-down": {
+          "0%": { opacity: "0", transform: "translateY(-12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.96)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
         },
       },
       animation: {
-        "halo-pulse": "halo-pulse 8s ease-in-out infinite",
-        "fade-in-up": "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "halo-pulse": "halo-pulse 9s ease-in-out infinite",
+        "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "fade-in-down": "fade-in-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "fade-in": "fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "scale-in": "scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
       },
     },
   },

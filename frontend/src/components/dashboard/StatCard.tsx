@@ -7,21 +7,23 @@ export function StatCard({
   description,
   icon: Icon,
   trend,
+  className = "",
 }: {
   title: string;
   value: string | number;
   description?: string;
   icon?: React.ElementType;
   trend?: string;
+  className?: string;
 }) {
   return (
-    <Card className="rounded-xl border border-purple-900/30 bg-[#100A1C]/80 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-md hover:border-purple-500/35 transition-all group">
+    <Card className={`rounded-xl border border-purple-900/30 bg-[#100A1C]/80 p-5 shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-md hover:border-purple-500/40 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(139,92,246,0.18)] transition-all duration-200 group cursor-default ${className}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-mono font-medium text-[#B0A4C3] uppercase tracking-wider">
+        <span className="text-xs font-mono font-medium text-[#B0A4C3] uppercase tracking-wider group-hover:text-purple-200 transition-colors">
           {title}
         </span>
         {Icon && (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(139,92,246,0.2)] group-hover:scale-105 transition-transform">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(139,92,246,0.2)] group-hover:scale-110 group-hover:border-purple-400/50 group-hover:text-purple-200 transition-all duration-200">
             <Icon className="h-4 w-4" />
           </div>
         )}

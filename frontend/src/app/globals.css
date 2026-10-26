@@ -82,6 +82,34 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+/* Reusable Motion Helpers & Micro-Interactions */
+.hover-card-glow {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.hover-card-glow:hover {
+  transform: translateY(-2px);
+  border-color: rgba(168, 85, 247, 0.38);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.16);
+}
+
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+/* Staggered Animation Delay Classes */
+.animation-delay-75 { animation-delay: 75ms; }
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-150 { animation-delay: 150ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+.animation-delay-600 { animation-delay: 600ms; }
+
 /* Custom Deep Violet Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -98,7 +126,7 @@ body {
   background: #581C87;
 }
 
-/* Accessibility: Reduced Motion */
+/* Accessibility: Strict Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -107,5 +135,6 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    transform: none !important;
   }
 }

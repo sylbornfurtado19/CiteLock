@@ -15,7 +15,7 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         {/* Verification Settings */}
-        <Card className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6">
+        <Card className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6 animate-fade-in-up hover-card-glow transition-all duration-200">
           <CardHeader>
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300">
@@ -57,7 +57,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Infrastructure & Storage */}
-        <Card className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6">
+        <Card className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6 animate-fade-in-up animation-delay-100 hover-card-glow transition-all duration-200">
           <CardHeader>
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950/80 border border-purple-500/30 text-purple-300">
