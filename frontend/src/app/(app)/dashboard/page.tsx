@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VerdictDistributionChart } from "@/components/dashboard/VerdictDistributionChart";
-import { ShieldCheck, Database, FileCheck, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldCheck, Database, FileCheck, AlertCircle, RefreshCw, Loader2, Activity } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
@@ -50,27 +50,54 @@ export default function DashboardPage() {
       : "100.0%";
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#F5F0FF]">Auditor Dashboard</h1>
-          <p className="text-sm text-[#B0A4C3] mt-1">
-            Real-time hallucination tracking, claim distribution, and citation fidelity metrics.
-          </p>
+    <div className="relative space-y-8 max-w-7xl mx-auto">
+      {/* Background ambient depth glow */}
+      <div
+        className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 h-80 w-[720px] bg-purple-600/8 blur-[120px] -z-10"
+        aria-hidden="true"
+      />
+
+      {/* Refined Dashboard Header Banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-purple-900/30 bg-[#0E081D]/80 p-5 sm:p-6 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-purple-400/30 before:to-transparent animate-fade-in-down">
+        {/* Subtle header ambient spotlight */}
+        <div
+          className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-purple-600/15 blur-2xl"
+          aria-hidden="true"
+        />
+
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/35 text-purple-300 shadow-[0_0_14px_rgba(139,92,246,0.3)]">
+            <ShieldCheck className="h-6 w-6 text-purple-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5F0FF]">
+                Auditor Dashboard
+              </h1>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-950/70 border border-purple-500/30 px-2.5 py-0.5 text-[10px] font-mono font-medium text-purple-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                LIVE AUDITING
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-[#B0A4C3] mt-1">
+              Real-time hallucination tracking, claim distribution, and citation fidelity metrics.
+            </p>
+          </div>
         </div>
+
         <Button
           variant="outline"
           size="sm"
           onClick={fetchAnalytics}
           disabled={loading}
-          className="text-xs self-start sm:self-auto group active:scale-95 transition-all duration-150"
+          className="text-xs self-start sm:self-auto gap-2 border-purple-500/30 bg-[#140D24] hover:bg-[#1A1130] hover:border-purple-400/50 hover:text-white transition-all duration-150 active:scale-95 shadow-sm group"
         >
-          {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300 group-hover:rotate-45 transition-transform duration-200" />
-          )}
-          Refresh Metrics
+          <RefreshCw
+            className={`h-3.5 w-3.5 text-purple-300 ${
+              loading ? "animate-spin text-purple-400" : "group-hover:rotate-45 transition-transform duration-200"
+            }`}
+          />
+          <span>{loading ? "Refreshing..." : "Refresh Metrics"}</span>
         </Button>
       </div>
 
@@ -113,7 +140,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts & System State */}
+      {/* Charts & Operational Pipeline State */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up animation-delay-300">
         <div className="lg:col-span-2">
           <VerdictDistributionChart
@@ -129,30 +156,62 @@ export default function DashboardPage() {
           />
         </div>
 
-        <Card className="rounded-xl border border-purple-900/30 bg-[#100A1C]/80 shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md p-6">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-[#F5F0FF]">
-              Operational Pipeline Status
-            </CardTitle>
-          </CardHeader>
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
-              <span className="text-[#B0A4C3]">Database Engine</span>
-              <span className="font-mono text-purple-300">Neon Postgres + pgvector</span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
-              <span className="text-[#B0A4C3]">Storage Provider</span>
-              <span className="font-mono text-purple-300">Firebase Storage (Private)</span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
-              <span className="text-[#B0A4C3]">Judge Provider</span>
-              <span className="font-mono text-purple-300">Remote API (RAM Safe)</span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[#070311] border border-purple-900/30">
-              <span className="text-[#B0A4C3]">Average Latency</span>
-              <span className="font-mono text-white">
-                {analytics?.avg_latency_ms ? `${Math.round(analytics.avg_latency_ms)} ms` : "0 ms"}
+        {/* Operational Pipeline Status Panel */}
+        <Card className="relative overflow-hidden rounded-2xl border border-purple-900/30 bg-[#100A1C]/85 p-6 shadow-[0_4px_24px_rgba(0,0,0,0.45)] backdrop-blur-md flex flex-col justify-between before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-purple-400/30 before:to-transparent">
+          {/* Subtle ambient light */}
+          <div
+            className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-purple-600/10 blur-xl"
+            aria-hidden="true"
+          />
+
+          <div>
+            <div className="flex items-center justify-between border-b border-purple-900/25 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950/70 border border-purple-500/30 text-purple-300">
+                  <Activity className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold text-[#F5F0FF]">
+                    Operational Pipeline Status
+                  </CardTitle>
+                  <p className="text-xs text-[#8D829F] mt-0.5">
+                    Core verification engines & runtime environment
+                  </p>
+                </div>
+              </div>
+              <span className="font-mono text-xs px-2.5 py-1 bg-purple-950/60 border border-purple-500/25 rounded-lg text-purple-300">
+                CONFIG
               </span>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#0B0616]/70 border border-purple-900/25 hover:border-purple-500/30 hover:bg-[#120A24] transition-all duration-150">
+                <span className="text-[#B0A4C3] font-medium shrink-0">Database Engine</span>
+                <span className="font-mono text-xs text-purple-200 text-right">
+                  Neon Postgres + pgvector
+                </span>
+              </div>
+
+              <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#0B0616]/70 border border-purple-900/25 hover:border-purple-500/30 hover:bg-[#120A24] transition-all duration-150">
+                <span className="text-[#B0A4C3] font-medium shrink-0">Storage Provider</span>
+                <span className="font-mono text-xs text-purple-200 text-right">
+                  Firebase Storage (Private)
+                </span>
+              </div>
+
+              <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-[#0B0616]/70 border border-purple-900/25 hover:border-purple-500/30 hover:bg-[#120A24] transition-all duration-150">
+                <span className="text-[#B0A4C3] font-medium shrink-0">Judge Provider</span>
+                <span className="font-mono text-xs text-purple-200 text-right">
+                  Remote API (RAM Safe)
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#0B0616]/70 border border-purple-900/25 hover:border-purple-500/30 hover:bg-[#120A24] transition-all duration-150">
+                <span className="text-[#B0A4C3] font-medium">Average Latency</span>
+                <span className="font-mono text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-sm">
+                  {analytics?.avg_latency_ms ? `${Math.round(analytics.avg_latency_ms)} ms` : "0 ms"}
+                </span>
+              </div>
             </div>
           </div>
         </Card>
