@@ -1,19 +1,22 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 
 /**
- * AnimatedMetricValue: Smoothly counts up to the numeric value
- * using an ease-out exponential curve, maintaining exact precision and suffix.
+ * AnimatedMetricValue: Smoothly counts up to numeric values
+ * using an ease-out exponential curve, maintaining exact decimal precision,
+ * smoothly gliding from previous to new values on data refresh.
  */
-function AnimatedMetricValue({ value }: { value: string | number }) {
+export function AnimatedMetricValue({ value }: { value: string | number }) {
   const [displayValue, setDisplayValue] = useState<string | number>(value);
+  const prevNumRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // If loading or null state
+    // If loading or empty placeholder state
     if (typeof value === "string" && (value === "--" || value.trim() === "")) {
       setDisplayValue("--");
+      prevNumRef.current = null;
       return;
     }
 
@@ -35,16 +38,25 @@ function AnimatedMetricValue({ value }: { value: string | number }) {
       return;
     }
 
-    const duration = 650; // milliseconds
+    const start = prevNumRef.current !== null ? prevNumRef.current : 0;
+    prevNumRef.current = num;
+
+    // If starting and target are identical, update directly
+    if (start === num) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const duration = 600; // ms
     const startTime = performance.now();
     let animFrame: number;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // easeOutExpo curve
+      // ease-out-expo
       const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const current = num * ease;
+      const current = start + (num - start) * ease;
 
       const formatted = hasPercent
         ? `${current.toFixed(1)}%`

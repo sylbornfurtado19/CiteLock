@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { StatCard } from "@/components/dashboard/StatCard";
+import { StatCard, AnimatedMetricValue } from "@/components/dashboard/StatCard";
 import { VerdictDistributionChart } from "@/components/dashboard/VerdictDistributionChart";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import {
@@ -69,13 +69,23 @@ export default function DashboardPage() {
         aria-hidden="true"
       />
 
-      {/* Refined Dashboard Header Banner with Interactive Luminance */}
+      {/* Refined Dashboard Header Banner with Interactive Luminance & Sweeping Radar Line */}
       <SpotlightCard
-        className="p-5 sm:p-6 animate-fade-in-down"
-        spotlightColor="rgba(168, 85, 247, 0.1)"
-        borderSpotlightColor="rgba(216, 180, 254, 0.3)"
+        className="relative p-5 sm:p-6 animate-fade-in-down overflow-hidden"
+        spotlightColor="rgba(168, 85, 247, 0.12)"
+        borderSpotlightColor="rgba(216, 180, 254, 0.35)"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Sweeping Radar-Line Animation Active During Refresh */}
+        {loading && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
+            {/* Top scanning laser edge */}
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent shadow-[0_0_18px_rgba(216,180,254,0.95)] animate-radar-sweep" />
+            {/* Ambient specular beam wash */}
+            <div className="h-full w-56 bg-gradient-to-r from-transparent via-purple-500/12 to-transparent blur-md animate-radar-sweep" />
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
           <div className="flex items-center gap-3.5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/35 text-purple-300 shadow-[0_0_14px_rgba(139,92,246,0.3)] group-hover:scale-105 group-hover:border-purple-400/50 transition-all duration-200">
               <ShieldCheck className="h-6 w-6 text-purple-300" />
@@ -85,10 +95,35 @@ export default function DashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5F0FF]">
                   Auditor Dashboard
                 </h1>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-950/70 border border-purple-500/30 px-2.5 py-0.5 text-[10px] font-mono font-medium text-purple-300 shadow-[0_0_8px_rgba(139,92,246,0.2)]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  LIVE AUDITING
-                </span>
+
+                {/* Cybernetic Telemetry Pill with 3-Peak Oscilloscope Wave */}
+                <div className="inline-flex items-center gap-2 rounded-full bg-purple-950/80 border border-purple-500/35 px-3 py-1 shadow-[0_0_12px_rgba(139,92,246,0.25)] backdrop-blur-md">
+                  {/* Miniature 3-peak SVG oscilloscope wave */}
+                  <svg
+                    className={`h-3 w-6 overflow-visible transition-colors duration-200 ${
+                      loading ? "text-purple-300 animate-oscilloscope-fast" : "text-emerald-400 animate-oscilloscope"
+                    }`}
+                    viewBox="0 0 24 10"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M1 5h3.5l2-3.5 3 7 3-6.5 2 4.5 2-1.5h6"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      loading ? "bg-purple-400 animate-ping" : "bg-emerald-400 animate-pulse"
+                    } shadow-[0_0_8px_currentColor]`}
+                  />
+                  <span className="text-[10px] font-mono font-semibold tracking-wider text-purple-200">
+                    {loading ? "AUDIT SWEEP..." : "LIVE AUDITING"}
+                  </span>
+                </div>
               </div>
               <p className="text-xs sm:text-sm text-[#B0A4C3] mt-1">
                 Real-time hallucination tracking, claim distribution, and citation fidelity metrics.
@@ -110,7 +145,7 @@ export default function DashboardPage() {
                   : "group-hover:rotate-45 transition-transform duration-200"
               }`}
             />
-            <span>{loading ? "Refreshing..." : "Refresh Metrics"}</span>
+            <span>{loading ? "Sweeping Audit..." : "Refresh Metrics"}</span>
           </Button>
         </div>
       </SpotlightCard>
@@ -122,36 +157,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI Cards with Staggered Entrance and Interactive Luminance */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Overall Grounding Rate"
-          value={loading ? "--" : groundingRate}
-          icon={ShieldCheck}
-          description="Claims verified by citation proof"
-          className="animate-fade-in-up"
-        />
-        <StatCard
-          title="Indexed Documents"
-          value={loading ? "--" : (analytics?.total_documents ?? 0).toString()}
-          icon={Database}
-          description="Private storage objects"
-          className="animate-fade-in-up animation-delay-75"
-        />
-        <StatCard
-          title="Total Claims Evaluated"
-          value={loading ? "--" : totalClaims.toString()}
-          icon={FileCheck}
-          description="Atomic propositions extracted"
-          className="animate-fade-in-up animation-delay-150"
-        />
-        <StatCard
-          title="Hallucination Interceptions"
-          value={loading ? "--" : hallucinationCount.toString()}
-          icon={AlertCircle}
-          description="Contradicted or unsupported claims"
-          className="animate-fade-in-up animation-delay-200"
-        />
+      {/* KPI Cards Deck with Specular Spotlight and Radar Scan Line */}
+      <div className="relative">
+        {loading && (
+          <div className="pointer-events-none absolute -inset-x-2 -top-2 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_14px_rgba(192,132,252,0.9)] animate-radar-sweep z-30" />
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Overall Grounding Rate"
+            value={loading ? "--" : groundingRate}
+            icon={ShieldCheck}
+            description="Claims verified by citation proof"
+            className="animate-fade-in-up"
+          />
+          <StatCard
+            title="Indexed Documents"
+            value={loading ? "--" : (analytics?.total_documents ?? 0).toString()}
+            icon={Database}
+            description="Private storage objects"
+            className="animate-fade-in-up animation-delay-75"
+          />
+          <StatCard
+            title="Total Claims Evaluated"
+            value={loading ? "--" : totalClaims.toString()}
+            icon={FileCheck}
+            description="Atomic propositions extracted"
+            className="animate-fade-in-up animation-delay-150"
+          />
+          <StatCard
+            title="Hallucination Interceptions"
+            value={loading ? "--" : hallucinationCount.toString()}
+            icon={AlertCircle}
+            description="Contradicted or unsupported claims"
+            className="animate-fade-in-up animation-delay-200"
+          />
+        </div>
       </div>
 
       {/* Charts & Operational Pipeline State */}
@@ -233,7 +274,10 @@ export default function DashboardPage() {
                   <span className="text-[#B0A4C3] font-medium">Average Latency</span>
                 </div>
                 <span className="font-mono text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-sm">
-                  {analytics?.avg_latency_ms ? `${Math.round(analytics.avg_latency_ms)} ms` : "0 ms"}
+                  <AnimatedMetricValue
+                    value={analytics?.avg_latency_ms ? Math.round(analytics.avg_latency_ms) : 0}
+                  />{" "}
+                  ms
                 </span>
               </div>
             </div>
