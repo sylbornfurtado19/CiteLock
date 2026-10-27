@@ -1,5 +1,68 @@
-import React from "react";
-import { Card } from "@/components/ui/card";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { SpotlightCard } from "@/components/ui/SpotlightCard";
+
+/**
+ * AnimatedMetricValue: Smoothly counts up to the numeric value
+ * using an ease-out exponential curve, maintaining exact precision and suffix.
+ */
+function AnimatedMetricValue({ value }: { value: string | number }) {
+  const [displayValue, setDisplayValue] = useState<string | number>(value);
+
+  useEffect(() => {
+    // If loading or null state
+    if (typeof value === "string" && (value === "--" || value.trim() === "")) {
+      setDisplayValue("--");
+      return;
+    }
+
+    // Check prefers-reduced-motion
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const strVal = String(value);
+    const hasPercent = strVal.endsWith("%");
+    const num = parseFloat(strVal.replace("%", ""));
+
+    if (isNaN(num)) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const duration = 650; // milliseconds
+    const startTime = performance.now();
+    let animFrame: number;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutExpo curve
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const current = num * ease;
+
+      const formatted = hasPercent
+        ? `${current.toFixed(1)}%`
+        : Math.round(current).toString();
+
+      setDisplayValue(formatted);
+
+      if (progress < 1) {
+        animFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrame);
+  }, [value]);
+
+  return <>{displayValue}</>;
+}
 
 export function StatCard({
   title,
@@ -17,21 +80,17 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <Card
-      className={`relative overflow-hidden rounded-2xl border border-purple-900/30 bg-[#100A1C]/85 p-5 sm:p-6 shadow-[0_4px_24px_rgba(0,0,0,0.45)] backdrop-blur-md hover:border-purple-500/40 hover:-translate-y-1 hover:shadow-[0_10px_32px_rgba(139,92,246,0.18)] transition-all duration-200 group cursor-default flex flex-col justify-between min-h-[142px] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-purple-400/30 before:to-transparent ${className}`}
+    <SpotlightCard
+      className={`p-5 sm:p-6 min-h-[148px] cursor-default ${className}`}
+      spotlightColor="rgba(168, 85, 247, 0.14)"
+      borderSpotlightColor="rgba(216, 180, 254, 0.4)"
     >
-      {/* Subtle top-right ambient spotlight */}
-      <div
-        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-purple-600/10 blur-xl group-hover:bg-purple-600/20 transition-all duration-300"
-        aria-hidden="true"
-      />
-
       <div className="flex items-start justify-between gap-3">
         <span className="text-xs font-mono font-medium text-[#B0A4C3] uppercase tracking-wider group-hover:text-purple-200 transition-colors leading-snug">
           {title}
         </span>
         {Icon && (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-950/70 border border-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.2)] group-hover:scale-110 group-hover:border-purple-400/50 group-hover:text-purple-100 transition-all duration-200">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-950/70 border border-purple-500/30 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.2)] group-hover:scale-110 group-hover:border-purple-400/60 group-hover:text-purple-100 group-hover:shadow-[0_0_16px_rgba(168,85,247,0.35)] transition-all duration-200">
             <Icon className="h-4 w-4" />
           </div>
         )}
@@ -40,7 +99,7 @@ export function StatCard({
       <div className="mt-4">
         <div className="flex items-baseline gap-2">
           <span className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F5F0FF] font-mono leading-none">
-            {value}
+            <AnimatedMetricValue value={value} />
           </span>
           {trend && (
             <span className="text-[11px] font-semibold text-purple-300 font-mono bg-purple-950/60 border border-purple-500/25 px-2 py-0.5 rounded-md">
@@ -54,6 +113,6 @@ export function StatCard({
           </p>
         )}
       </div>
-    </Card>
+    </SpotlightCard>
   );
 }
