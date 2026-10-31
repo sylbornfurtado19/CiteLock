@@ -35,6 +35,28 @@ def clean_error_message(err: Exception) -> str:
     return msg
 
 
+def _mark_failed(db: Session, document_id: UUID, error_msg: str) -> Optional[Document]:
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if doc:
+        doc.status = "failed"
+        doc.error_message = error_msg
+        db.commit()
+        db.refresh(doc)
+        try:
+            from app.services.audit.recorder import record_audit_event
+            record_audit_event(
+                db=db,
+                workspace_id=doc.workspace_id,
+                event_type="document_failed",
+                actor="system",
+                description=f"Document indexing failed: {doc.filename}",
+                payload={"document_id": str(doc.id), "filename": doc.filename, "error": error_msg},
+            )
+        except Exception as audit_err:
+            logger.warning(f"Failed to record audit event for document_failed: {audit_err}")
+    return doc
+
+
 def index_document(
     db: Session,
     document_id: UUID,
@@ -123,34 +145,30 @@ def index_document(
         db.commit()
         db.refresh(doc)
         logger.info(f"Successfully indexed document {doc.id} ({doc.filename}) with {len(chunks_data)} chunks.")
+
+        try:
+            from app.services.audit.recorder import record_audit_event
+            record_audit_event(
+                db=db,
+                workspace_id=doc.workspace_id,
+                event_type="document_indexed",
+                actor="system",
+                description=f"Document successfully indexed: {doc.filename}",
+                payload={"document_id": str(doc.id), "filename": doc.filename, "chunk_count": len(chunks_data)},
+            )
+        except Exception as audit_err:
+            logger.warning(f"Failed to record audit event for document_indexed: {audit_err}")
+
         return doc
 
     except (ScannedDocumentError, EmptyDocumentError, UnsupportedFileTypeError) as e:
         logger.warning(f"Indexing rejected for document {document_id}: {e}")
-        doc = db.query(Document).filter(Document.id == document_id).first()
-        if doc:
-            doc.status = "failed"
-            doc.error_message = str(e)
-            db.commit()
-            db.refresh(doc)
-        return doc
+        return _mark_failed(db, document_id, str(e))
 
     except (ProviderError, StorageError) as e:
         logger.error(f"External service failure indexing document {document_id}: {e}")
-        doc = db.query(Document).filter(Document.id == document_id).first()
-        if doc:
-            doc.status = "failed"
-            doc.error_message = clean_error_message(e)
-            db.commit()
-            db.refresh(doc)
-        return doc
+        return _mark_failed(db, document_id, clean_error_message(e))
 
     except Exception as e:
         logger.exception(f"Unexpected error indexing document {document_id}")
-        doc = db.query(Document).filter(Document.id == document_id).first()
-        if doc:
-            doc.status = "failed"
-            doc.error_message = f"Indexing failed: {clean_error_message(e)}"
-            db.commit()
-            db.refresh(doc)
-        return doc
+        return _mark_failed(db, document_id, f"Indexing failed: {clean_error_message(e)}")

@@ -130,6 +130,16 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
+    from app.services.audit.recorder import record_audit_event
+    record_audit_event(
+        db=db,
+        workspace_id=workspace.id,
+        event_type="document_uploaded",
+        actor="user",
+        description=f"Document uploaded: {safe_filename}",
+        payload={"document_id": str(document_id), "filename": safe_filename, "file_size_bytes": len(content)},
+    )
+
     # 3. Process indexing pipeline
     if sync:
         doc = index_document(db, doc.id, content)
@@ -245,7 +255,32 @@ def delete_document(
     except Exception:
         pass  # Proceed with DB deletion even if storage blob was already removed
 
-    # 2. Delete document record (cascades to chunks)
+    # 2. Preserve evidence links audit integrity: snapshot document_filename & detach chunk_id
+    from app.db.models.chunks import Chunk
+    from app.db.models.evidence_links import EvidenceLink
+    from app.services.audit.recorder import record_audit_event
+
+    chunk_ids = [c[0] for c in db.query(Chunk.id).filter(Chunk.document_id == doc.id).all()]
+    if chunk_ids:
+        links = db.query(EvidenceLink).filter(EvidenceLink.chunk_id.in_(chunk_ids)).all()
+        for link in links:
+            if not link.document_filename:
+                link.document_filename = doc.filename
+            link.chunk_id = None
+        db.flush()
+
+    # 3. Record audit event for document deletion
+    doc_filename = doc.filename
+    record_audit_event(
+        db=db,
+        workspace_id=workspace.id,
+        event_type="document_deleted",
+        actor="user",
+        description=f"Document deleted: {doc_filename}",
+        payload={"document_id": str(doc.id), "filename": doc_filename},
+    )
+
+    # 4. Delete document record (cascades to chunks)
     db.delete(doc)
     db.commit()
     return None

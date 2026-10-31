@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import { CardTitle } from "@/components/ui/card";
@@ -11,86 +11,97 @@ import {
   RotateCcw,
   ShieldAlert,
   ArrowRight,
-  ExternalLink,
   MessageSquare,
   FileSearch,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
+import { AuditListItem } from "@/types";
 
-interface AuditFeedItem {
-  id: string;
-  prompt: string;
-  status: "grounded" | "flagged" | "corrected" | "abstained";
-  statusLabel: string;
-  claimsCount: number;
-  hallucinations: number;
-  latencyMs: number;
-  timestamp: string;
+function formatTimeAgo(isoString: string): string {
+  try {
+    const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  } catch {
+    return isoString;
+  }
 }
 
-const DEFAULT_AUDITS: AuditFeedItem[] = [
-  {
-    id: "demo-audit-001",
-    prompt: "What is our standard SLA for enterprise data deletion requests?",
-    status: "grounded",
-    statusLabel: "100% Grounded",
-    claimsCount: 4,
-    hallucinations: 0,
-    latencyMs: 142,
-    timestamp: "2m ago",
-  },
-  {
-    id: "demo-audit-002",
-    prompt: "Summarize confidentiality liabilities under the mutual NDA clause.",
-    status: "flagged",
-    statusLabel: "1 Contradiction Intercepted",
-    claimsCount: 6,
-    hallucinations: 1,
-    latencyMs: 218,
-    timestamp: "18m ago",
-  },
-  {
-    id: "demo-audit-003",
-    prompt: "What are the allowed third-party sub-processors in European regions?",
-    status: "grounded",
-    statusLabel: "100% Grounded",
-    claimsCount: 3,
-    hallucinations: 0,
-    latencyMs: 164,
-    timestamp: "45m ago",
-  },
-  {
-    id: "demo-audit-004",
-    prompt: "Can customer proprietary data be used to train foundation models?",
-    status: "corrected",
-    statusLabel: "Self-Corrected (Round 2)",
-    claimsCount: 5,
-    hallucinations: 0,
-    latencyMs: 310,
-    timestamp: "2h ago",
-  },
-  {
-    id: "demo-audit-005",
-    prompt: "What is the policy regarding SOC2 Type II compliance audit reports?",
-    status: "grounded",
-    statusLabel: "100% Grounded",
-    claimsCount: 4,
-    hallucinations: 0,
-    latencyMs: 128,
-    timestamp: "4h ago",
-  },
-];
+function getStatusDisplay(audit: AuditListItem) {
+  if (audit.verification_status === "abstained") {
+    return {
+      label: "Abstained",
+      badgeStyles: "bg-slate-900/80 border-slate-700 text-slate-300",
+      Icon: ShieldAlert,
+    };
+  }
+  if (audit.correction_rounds > 0) {
+    return {
+      label: `Self-Corrected (Round ${audit.correction_rounds})`,
+      badgeStyles: "bg-purple-950/70 border-purple-500/35 text-purple-200",
+      Icon: RotateCcw,
+    };
+  }
+  if (audit.hallucination_rate > 0) {
+    return {
+      label: `${Math.round(audit.hallucination_rate * 100)}% Flagged`,
+      badgeStyles: "bg-rose-950/70 border-rose-500/30 text-rose-300",
+      Icon: AlertTriangle,
+    };
+  }
+  return {
+    label: "100% Grounded",
+    badgeStyles: "bg-emerald-950/70 border-emerald-500/30 text-emerald-300",
+    Icon: ShieldCheck,
+  };
+}
 
 export function RecentAuditsFeed({
+  workspaceId = "default-workspace-001",
   totalQueries = 0,
   className = "",
 }: {
+  workspaceId?: string;
   totalQueries?: number;
   className?: string;
 }) {
-  const hasAudits = totalQueries > 0;
-  const items = hasAudits ? DEFAULT_AUDITS : [];
+  const [audits, setAudits] = useState<AuditListItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAudits() {
+      try {
+        setLoading(true);
+        const data = await apiFetch<AuditListItem[]>(
+          `/api/v1/workspaces/${workspaceId}/audits`
+        );
+        if (isMounted) {
+          setAudits(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error("Failed to load audits:", err);
+        if (isMounted) {
+          setAudits([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+    loadAudits();
+    return () => {
+      isMounted = false;
+    };
+  }, [workspaceId]);
+
+  const hasAudits = audits.length > 0;
 
   return (
     <SpotlightCard
@@ -116,7 +127,7 @@ export function RecentAuditsFeed({
 
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs px-2.5 py-1 bg-purple-950/60 border border-purple-500/25 rounded-lg text-purple-300">
-            {hasAudits ? `${items.length} Recent Streams` : "0 Audits"}
+            {hasAudits ? `${audits.length} Recent Streams` : "0 Audits"}
           </span>
           <Link href="/chat">
             <Button
@@ -132,7 +143,12 @@ export function RecentAuditsFeed({
       </div>
 
       {/* Feed Content */}
-      {hasAudits ? (
+      {loading && audits.length === 0 ? (
+        <div className="flex items-center justify-center p-8 text-purple-300 gap-2 text-xs font-mono">
+          <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+          <span>Loading audit history...</span>
+        </div>
+      ) : hasAudits ? (
         <div className="space-y-2.5">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -140,30 +156,19 @@ export function RecentAuditsFeed({
                 <tr className="border-b border-purple-900/25 text-[10px] font-mono uppercase tracking-wider text-[#8D829F]">
                   <th className="pb-2.5 font-medium">Query Prompt Snippet</th>
                   <th className="pb-2.5 font-medium px-3">Verdict Status</th>
-                  <th className="pb-2.5 font-medium px-3">Latency SLA</th>
+                  <th className="pb-2.5 font-medium px-3">Correction Cycles</th>
                   <th className="pb-2.5 font-medium px-3">Timestamp</th>
                   <th className="pb-2.5 font-medium text-right">Inspection</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-purple-900/15">
-                {items.map((audit) => {
-                  let badgeStyles = "bg-emerald-950/70 border-emerald-500/30 text-emerald-300";
-                  let BadgeIcon = ShieldCheck;
-
-                  if (audit.status === "flagged") {
-                    badgeStyles = "bg-rose-950/70 border-rose-500/30 text-rose-300";
-                    BadgeIcon = AlertTriangle;
-                  } else if (audit.status === "corrected") {
-                    badgeStyles = "bg-purple-950/70 border-purple-500/35 text-purple-200";
-                    BadgeIcon = RotateCcw;
-                  } else if (audit.status === "abstained") {
-                    badgeStyles = "bg-slate-900/80 border-slate-700 text-slate-300";
-                    BadgeIcon = ShieldAlert;
-                  }
+                {audits.map((audit) => {
+                  const { label, badgeStyles, Icon: BadgeIcon } = getStatusDisplay(audit);
+                  const count = audit.claim_count ?? audit.claims_count ?? 0;
 
                   return (
                     <tr
-                      key={audit.id}
+                      key={audit.answer_id}
                       className="group transition-colors hover:bg-[#150D2A]/60"
                     >
                       {/* Query Prompt Snippet */}
@@ -177,7 +182,7 @@ export function RecentAuditsFeed({
                               {audit.prompt}
                             </span>
                             <span className="font-mono text-[10px] text-[#8D829F] mt-0.5 block">
-                              {audit.claimsCount} claims evaluated • {audit.id}
+                              {count} claims evaluated • {audit.answer_id.slice(0, 8)}...
                             </span>
                           </div>
                         </div>
@@ -189,34 +194,25 @@ export function RecentAuditsFeed({
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-medium border ${badgeStyles} shadow-sm`}
                         >
                           <BadgeIcon className="h-3 w-3 shrink-0" />
-                          <span>{audit.statusLabel}</span>
+                          <span>{label}</span>
                         </span>
                       </td>
 
-                      {/* Latency SLA */}
+                      {/* Correction Cycles */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 font-mono text-xs text-purple-200">
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              audit.latencyMs < 200
-                                ? "bg-emerald-400"
-                                : audit.latencyMs < 500
-                                ? "bg-amber-400"
-                                : "bg-rose-400"
-                            }`}
-                          />
-                          <span>{audit.latencyMs} ms</span>
+                          <span>{audit.correction_rounds} cycle{audit.correction_rounds === 1 ? "" : "s"}</span>
                         </div>
                       </td>
 
                       {/* Timestamp */}
                       <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-[#8D829F]">
-                        {audit.timestamp}
+                        {formatTimeAgo(audit.created_at)}
                       </td>
 
                       {/* Direct Action Link */}
                       <td className="py-3 pl-3 text-right whitespace-nowrap">
-                        <Link href={`/audits/${audit.id}`}>
+                        <Link href={`/audits/${audit.answer_id}`}>
                           <Button
                             variant="ghost"
                             size="sm"

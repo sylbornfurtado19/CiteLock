@@ -99,7 +99,8 @@ class SearchResult(BaseModel):
 class EvidenceLinkRead(BaseModel):
     id: UUID
     claim_id: UUID
-    chunk_id: UUID
+    chunk_id: Optional[UUID] = None
+    document_filename: Optional[str] = None
     relevance_score: Optional[float] = None
     exact_quote: Optional[str] = None
     start_char_offset: Optional[int] = None
@@ -118,6 +119,7 @@ class ClaimRead(BaseModel):
     rationale: Optional[str] = None
     explanation: Optional[str] = None
     evidence_references: List[Any] = Field(default_factory=list)
+    cited_chunk_ids: List[Any] = Field(default_factory=list)
     source_excerpts: List[str] = Field(default_factory=list)
     verification_metadata: Optional[Dict[str, Any]] = None
     evidence_links: List[EvidenceLinkRead] = []
@@ -127,7 +129,9 @@ class ClaimRead(BaseModel):
     @model_validator(mode="after")
     def populate_evidence_references(self) -> "ClaimRead":
         if not self.evidence_references and self.evidence_links:
-            self.evidence_references = [link.chunk_id for link in self.evidence_links]
+            self.evidence_references = [link.chunk_id for link in self.evidence_links if link.chunk_id]
+        if not self.cited_chunk_ids and self.evidence_links:
+            self.cited_chunk_ids = [link.chunk_id for link in self.evidence_links if link.chunk_id]
         if not self.source_excerpts and self.evidence_links:
             self.source_excerpts = [link.exact_quote for link in self.evidence_links if link.exact_quote]
         return self
@@ -212,8 +216,40 @@ class AnalyticsSummary(BaseModel):
     total_queries: int
     total_documents: int
     overall_hallucination_rate: float
+    grounding_rate: float = 1.0
     verdict_distribution: Dict[str, int]
     avg_latency_ms: float
+
+
+class AuditListItem(BaseModel):
+    answer_id: UUID
+    prompt: str
+    verification_status: Optional[str] = None
+    claim_count: int
+    claims_count: Optional[int] = None
+    hallucination_rate: float
+    correction_rounds: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def sync_claims_count(self) -> "AuditListItem":
+        if self.claims_count is None:
+            self.claims_count = self.claim_count
+        return self
+
+
+class AuditEventRead(BaseModel):
+    id: UUID
+    workspace_id: UUID
+    event_type: str
+    actor: str
+    description: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Verification API Schemas

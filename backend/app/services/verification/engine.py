@@ -39,7 +39,7 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
 
         provenance_error = None
         try:
-            raw_provenance = trace_claim_provenance(clean_claim_text, retrieved_passages)
+            raw_provenance = trace_claim_provenance(clean_claim_text, retrieved_passages, cited_passages=cited_passages)
         except Exception as e:
             logger.error(f"Provenance tracking error for claim {claim_id}: {e}", exc_info=True)
             provenance_error = str(e)

@@ -146,6 +146,7 @@ export default function AuditDetailPage() {
         finalText={auditData.final_text}
         rounds={auditData.correction_rounds}
         isAbstained={auditData.is_abstained}
+        correctionHistory={auditData.correction_history}
       />
 
       {/* Decomposed Atomic Claims */}

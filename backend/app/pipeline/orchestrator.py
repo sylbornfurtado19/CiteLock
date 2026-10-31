@@ -180,17 +180,17 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
                     except (ValueError, TypeError) as err:
                         logger.warning("Invalid UUID for evidence chunk_id '%s': %s", raw_cid, err)
 
-        valid_db_chunk_ids = set()
+        valid_db_chunks = {}
         if candidate_chunk_ids:
             from app.db.models.chunks import Chunk
             from app.db.models.documents import Document
-            valid_db_chunk_ids = {
-                row[0]
-                for row in db.query(Chunk.id)
+            rows = (
+                db.query(Chunk.id, Document.filename)
                 .join(Document, Chunk.document_id == Document.id)
                 .filter(Document.workspace_id == workspace_id, Chunk.id.in_(candidate_chunk_ids))
                 .all()
-            }
+            )
+            valid_db_chunks = {row[0]: row[1] for row in rows}
 
         persisted_claim_objs = []
         for idx, c in enumerate(final_claims):
@@ -211,11 +211,13 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
                 if raw_chunk_id:
                     try:
                         c_uuid = UUID(str(raw_chunk_id))
-                        if c_uuid in valid_db_chunk_ids:
+                        if c_uuid in valid_db_chunks:
+                            doc_fn = ev.get("document_filename") or valid_db_chunks.get(c_uuid)
                             ev_link = EvidenceLink(
                                 id=uuid.uuid4(),
                                 claim_id=claim_record.id,
                                 chunk_id=c_uuid,
+                                document_filename=doc_fn,
                                 relevance_score=ev.get("relevance_score"),
                                 exact_quote=ev.get("exact_quote"),
                                 start_char_offset=ev.get("start_char_offset"),
@@ -232,16 +234,69 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
 
             persisted_claim_objs.append(claim_record)
 
-        run_record = VerificationRun(
+        # Write one VerificationRun per round (initial verification + each correction round)
+        initial_metrics = verification_result.get("metrics") or compute_verification_metrics(verification_result["claims"])
+        initial_run = VerificationRun(
             id=uuid.uuid4(),
             answer_id=answer_record.id,
-            round_number=max(1, rounds),
+            round_number=1,
             judge_model=get_settings().llm_provider,
-            hallucination_rate=metrics["hallucination_rate"],
-            verification_summary=metrics,
-            latency_ms=latency_ms,
+            hallucination_rate=initial_metrics.get("hallucination_rate", 0.0),
+            verification_summary=initial_metrics,
+            latency_ms=latency_ms if rounds == 0 else None,
         )
-        db.add(run_record)
+        db.add(initial_run)
+
+        for item in correction_history:
+            round_num = item.get("round", 1) + 1
+            round_metrics = item.get("metrics") or metrics
+            c_run = VerificationRun(
+                id=uuid.uuid4(),
+                answer_id=answer_record.id,
+                round_number=round_num,
+                judge_model=get_settings().llm_provider,
+                hallucination_rate=round_metrics.get("hallucination_rate", 0.0),
+                verification_summary=round_metrics,
+                latency_ms=latency_ms if round_num == (len(correction_history) + 1) else None,
+            )
+            db.add(c_run)
+
+        # Record audit trail events
+        from app.services.audit.recorder import record_audit_event
+        record_audit_event(
+            db=db,
+            workspace_id=workspace_id,
+            event_type="query_executed",
+            actor="user",
+            description=f"Query executed: {prompt[:100]}",
+            payload={"query_id": str(query_record.id), "answer_id": str(answer_record.id), "verification_status": verification_status},
+        )
+
+        for item in correction_history:
+            record_audit_event(
+                db=db,
+                workspace_id=workspace_id,
+                event_type="correction_round",
+                actor="system",
+                description=f"Correction round {item.get('round')} executed",
+                payload={
+                    "query_id": str(query_record.id),
+                    "answer_id": str(answer_record.id),
+                    "round": item.get("round"),
+                    "failed_count_before": item.get("failed_count_before"),
+                    "failed_count_after": item.get("failed_count_after"),
+                },
+            )
+
+        if is_abstained:
+            record_audit_event(
+                db=db,
+                workspace_id=workspace_id,
+                event_type="abstention",
+                actor="system",
+                description="Pipeline abstained due to insufficient or ungrounded evidence",
+                payload={"query_id": str(query_record.id), "answer_id": str(answer_record.id)},
+            )
 
         db.commit()
         db.refresh(query_record)

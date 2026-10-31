@@ -154,6 +154,7 @@ def execute_correction_loop(
             "failed_count_before": len(failed_subset),
             "failed_count_after": len(new_failures),
             "new_evidence_chunks": [str(p.get("id") or p.get("chunk_id")) for p in newly_retrieved],
+            "metrics": new_verification.get("metrics"),
         }
         correction_history.append(attempt_record)
 

@@ -37,12 +37,12 @@ export default function DashboardPage() {
   const [exportingReport, setExportingReport] = useState(false);
   const [exportedSuccess, setExportedSuccess] = useState(false);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (rangeOverride?: string) => {
     try {
       setLoading(true);
       setError(null);
       const data = await apiFetch<AnalyticsSummary>(
-        `/api/v1/workspaces/${workspaceId}/analytics`
+        `/api/v1/workspaces/${workspaceId}/analytics${(rangeOverride || selectedRange).toLowerCase() !== "all" ? `?range=${(rangeOverride || selectedRange).toLowerCase()}` : ""}`
       );
       setAnalytics(data);
     } catch (err: unknown) {
@@ -55,7 +55,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [workspaceId]);
+  }, [workspaceId, selectedRange]);
 
   const totalClaims = analytics?.verdict_distribution
     ? Object.values(analytics.verdict_distribution).reduce((a, b) => a + b, 0)
@@ -67,7 +67,9 @@ export default function DashboardPage() {
     : 0;
 
   const groundingRate =
-    analytics && analytics.total_queries > 0
+    analytics && typeof analytics.grounding_rate === "number"
+      ? `${(analytics.grounding_rate * 100).toFixed(1)}%`
+      : analytics && analytics.total_queries > 0
       ? `${((1 - analytics.overall_hallucination_rate) * 100).toFixed(1)}%`
       : "100.0%";
 
@@ -197,7 +199,7 @@ export default function DashboardPage() {
                   key={range}
                   onClick={() => {
                     setSelectedRange(range);
-                    fetchAnalytics();
+                    fetchAnalytics(range);
                   }}
                   className={`px-2.5 py-1 text-xs rounded-lg font-mono transition-all duration-150 ${
                     selectedRange === range
@@ -214,7 +216,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchAnalytics}
+              onClick={() => fetchAnalytics()}
               disabled={loading}
               className="text-xs self-start sm:self-auto gap-2 border-purple-500/30 bg-[#140D24] hover:bg-[#1A1130] hover:border-purple-400/50 hover:text-white transition-all duration-150 active:scale-95 shadow-sm group"
             >
@@ -365,7 +367,7 @@ export default function DashboardPage() {
 
       {/* Module A: Recent Verification Audits Live Feed */}
       <div className="animate-fade-in-up animation-delay-400">
-        <RecentAuditsFeed totalQueries={analytics?.total_queries ?? 0} />
+        <RecentAuditsFeed workspaceId={workspaceId} totalQueries={analytics?.total_queries ?? 0} />
       </div>
     </div>
   );

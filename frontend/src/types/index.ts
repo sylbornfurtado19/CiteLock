@@ -68,6 +68,17 @@ export interface Answer {
   created_at: string;
 }
 
+export interface CorrectionRound {
+  round: number;
+  draft_before?: string;
+  revised_text?: string;
+  targeted_claims?: string[];
+  failed_count_before?: number;
+  failed_count_after?: number;
+  new_evidence_chunks?: string[];
+  metrics?: Record<string, any>;
+}
+
 export interface AnswerAudit {
   answer_id: string;
   query_id: string;
@@ -78,6 +89,30 @@ export interface AnswerAudit {
   is_abstained: boolean;
   claims: Claim[];
   hallucination_rate: number;
+  correction_history?: CorrectionRound[];
+  verification_status?: string;
+  execution_metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface AuditListItem {
+  answer_id: string;
+  prompt: string;
+  verification_status?: string;
+  claim_count: number;
+  claims_count?: number;
+  hallucination_rate: number;
+  correction_rounds: number;
+  created_at: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  workspace_id: string;
+  event_type: string;
+  actor: string;
+  description?: string;
+  payload?: Record<string, any>;
   created_at: string;
 }
 
@@ -85,6 +120,7 @@ export interface AnalyticsSummary {
   total_queries: number;
   total_documents: number;
   overall_hallucination_rate: number;
+  grounding_rate?: number;
   verdict_distribution: Record<Verdict, number>;
   avg_latency_ms: number;
 }
