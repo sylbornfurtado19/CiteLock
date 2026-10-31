@@ -1,8 +1,14 @@
 """Pytest shared fixtures, in-memory database setup, test clients, and synthetic file generators."""
 
 import io
+import os
 import uuid
 import pytest
+
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("LLM_PROVIDER", "mock")
+os.environ.setdefault("EMBEDDING_PROVIDER", "mock")
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

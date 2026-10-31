@@ -31,8 +31,9 @@ services:
       DATABASE_URL: postgresql+psycopg://citelock:citelock_dev_password@postgres:5432/citelock
       PORT: "8000"
       STORAGE_PROVIDER: none
-      LLM_PROVIDER: openai
-      EMBEDDING_PROVIDER: openai
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+      EMBEDDING_DIM: "1536"
       ENVIRONMENT: development
       ALLOW_DEV_AUTH: "true"
     depends_on:

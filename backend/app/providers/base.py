@@ -44,7 +44,10 @@ class EmbeddingProvider(ABC):
 class MockEmbeddingProvider(EmbeddingProvider):
     """Deterministic, unit-normalized vector generator for offline testing and development."""
 
-    def __init__(self, dimension: int = 1536, simulate_failure: bool = False):
+    def __init__(self, dimension: Optional[int] = None, simulate_failure: bool = False):
+        if dimension is None:
+            settings = get_settings()
+            dimension = settings.embedding_dim
         self.dimension = dimension
         self.simulate_failure = simulate_failure
 
@@ -207,21 +210,25 @@ def get_llm_provider() -> LLMProvider:
     if provider_name == "gemini":
         from app.providers.gemini_adapter import GeminiProvider
         return GeminiProvider()
-    from app.providers.openai_adapter import OpenAIProvider
-    return OpenAIProvider()
+    if provider_name == "openai":
+        from app.providers.openai_adapter import OpenAIProvider
+        return OpenAIProvider()
+    raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
 
 
 def get_embedding_provider() -> EmbeddingProvider:
     """Factory to instantiate configured remote embedding provider."""
     settings = get_settings()
     provider_name = settings.embedding_provider.lower()
+    if provider_name == "mock":
+        return MockEmbeddingProvider(dimension=settings.embedding_dim)
     if provider_name == "gemini":
         from app.providers.gemini_adapter import GeminiProvider
         return GeminiProvider()
     if provider_name == "openai":
         from app.providers.openai_adapter import OpenAIProvider
         return OpenAIProvider()
-    return MockEmbeddingProvider()
+    raise ValueError(f"Unknown embedding provider: {settings.embedding_provider}")
 
 
 _none_storage_singleton = None

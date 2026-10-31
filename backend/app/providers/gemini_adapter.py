@@ -1,34 +1,35 @@
 """Google Gemini API provider adapter for remote embeddings and structured verification."""
 
 from typing import Any, Dict, List, Optional
+import json
 import httpx
 
-from app.config import get_settings
-import json
 from app.config import get_settings
 from app.providers.base import (
     LLMProvider,
     EmbeddingProvider,
     ProviderError,
-    MockEmbeddingProvider,
-    MockLLMProvider,
 )
 
 
+# Note: Gemini model IDs must be checked against currently available models.
 class GeminiProvider(LLMProvider, EmbeddingProvider):
     """Google Gemini API integration for generative inference and text embeddings."""
 
     def __init__(self):
         settings = get_settings()
-        self.api_key = settings.llm_api_key or "placeholder-gemini-key"
+        self.llm_api_key = settings.llm_api_key
+        self.embedding_api_key = settings.embedding_api_key
+        # Gemini model IDs must be checked against currently available models.
+        self.llm_model = settings.gemini_llm_model
+        self.embedding_model = settings.gemini_embedding_model
+        self.embedding_dim = settings.embedding_dim
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
-        self._mock_fallback = MockEmbeddingProvider()
-        self._mock_llm = MockLLMProvider()
 
     def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
-        """Call Gemini generateContent endpoint or fall back to local mock."""
-        if not self.api_key or "placeholder" in self.api_key.lower():
-            return self._mock_llm.complete(prompt, system_prompt, temperature)
+        """Call Gemini generateContent endpoint."""
+        if not self.llm_api_key or "placeholder" in self.llm_api_key.lower():
+            raise ProviderError("Gemini LLM API key is missing or invalid.")
 
         contents = []
         if system_prompt:
@@ -39,7 +40,8 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
         try:
             with httpx.Client(timeout=45.0) as client:
                 res = client.post(
-                    f"{self.base_url}/models/gemini-1.5-flash:generateContent?key={self.api_key}",
+                    f"{self.base_url}/models/{self.llm_model}:generateContent",
+                    headers={"x-goog-api-key": self.llm_api_key},
                     json={
                         "contents": contents,
                         "generationConfig": {"temperature": temperature},
@@ -56,8 +58,8 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
 
     def structured_judge(self, claim: str, evidence_passages: List[str]) -> Dict[str, Any]:
         """Perform structured claim verification using Gemini structured JSON mode."""
-        if not self.api_key or "placeholder" in self.api_key.lower():
-            return self._mock_llm.structured_judge(claim, evidence_passages)
+        if not self.llm_api_key or "placeholder" in self.llm_api_key.lower():
+            raise ProviderError("Gemini LLM API key is missing or invalid.")
 
         system_instruction = (
             "You are a factual verification judge. Evaluate the user's claim strictly against the provided reference evidence.\n"
@@ -71,7 +73,8 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
         try:
             with httpx.Client(timeout=45.0) as client:
                 res = client.post(
-                    f"{self.base_url}/models/gemini-1.5-flash:generateContent?key={self.api_key}",
+                    f"{self.base_url}/models/{self.llm_model}:generateContent",
+                    headers={"x-goog-api-key": self.llm_api_key},
                     json={
                         "contents": [{"parts": [{"text": user_prompt}]}],
                         "generationConfig": {
@@ -90,25 +93,31 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
             raise ProviderError(f"Failed to communicate with Gemini judge API: {str(e)[:200]}")
 
     def embed_text(self, text: str) -> List[float]:
-        """Generate text embedding using text-embedding-004 or fallback mock."""
+        """Generate text embedding using configured Gemini embedding model."""
         batch_res = self.embed_batch([text])
         return batch_res[0]
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate batch embeddings using batchEmbedContents or fallback mock."""
+        """Generate batch embeddings using batchEmbedContents."""
         if not texts:
             return []
-        if not self.api_key or "placeholder" in self.api_key.lower():
-            return self._mock_fallback.embed_batch(texts)
+        if not self.embedding_api_key or "placeholder" in self.embedding_api_key.lower():
+            raise ProviderError("Gemini embedding API key is missing or invalid.")
 
+        model_name = self.embedding_model if self.embedding_model.startswith("models/") else f"models/{self.embedding_model}"
         try:
             with httpx.Client(timeout=45.0) as client:
                 requests = [
-                    {"model": "models/text-embedding-004", "content": {"parts": [{"text": t}]}}
+                    {
+                        "model": model_name,
+                        "content": {"parts": [{"text": t}]},
+                        "outputDimensionality": self.embedding_dim,
+                    }
                     for t in texts
                 ]
                 res = client.post(
-                    f"{self.base_url}/models/text-embedding-004:batchEmbedContents?key={self.api_key}",
+                    f"{self.base_url}/{model_name}:batchEmbedContents",
+                    headers={"x-goog-api-key": self.embedding_api_key},
                     json={"requests": requests},
                 )
                 if res.status_code != 200:

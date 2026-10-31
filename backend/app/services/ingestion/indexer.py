@@ -86,6 +86,13 @@ def index_document(
         if len(embeddings) != len(chunks_data):
             raise ProviderError(f"Embedding count mismatch: expected {len(chunks_data)}, got {len(embeddings)}.")
 
+        expected_dim = settings.embedding_dim
+        for emb in embeddings:
+            if len(emb) != expected_dim:
+                raise ProviderError(
+                    f"Embedding dimension mismatch: expected {expected_dim}, got {len(emb)}."
+                )
+
         # 5. Atomic persistence: delete old chunks (idempotent retry safety) and insert new ones
         with db.begin_nested():
             db.query(Chunk).filter(Chunk.document_id == doc.id).delete()

@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db.session import get_db
 from app.db.models.users import User
 from app.db.models.workspaces import Workspace
@@ -21,9 +22,8 @@ def get_current_user(
     """Extract and verify Firebase ID token, returning or syncing the current database User."""
     # TODO: Cache authenticated user lookups in Redis or in-memory LRU
     if not credentials:
-        from app.config import get_settings
         settings = get_settings()
-        if settings.allow_dev_auth is True or settings.environment.lower() == "development":
+        if settings.environment.lower() == "development" and settings.allow_dev_auth is True:
             # Explicit opt-in development test fallback
             dev_uid = "dev_default_firebase_uid"
             user = db.query(User).filter(User.firebase_uid == dev_uid).first()

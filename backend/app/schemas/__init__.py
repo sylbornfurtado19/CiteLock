@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 
 
 class Verdict(str, Enum):
@@ -185,8 +185,19 @@ class AnalyticsSummary(BaseModel):
 
 # Verification API Schemas
 class VerifyRequest(BaseModel):
-    statement: str = Field(..., min_length=1)
-    context_passages: List[str] = Field(..., min_length=1)
+    statement: str = Field(..., min_length=1, max_length=1000)
+    context_passages: List[str] = Field(..., min_length=1, max_length=20)
+
+    @field_validator("context_passages")
+    @classmethod
+    def validate_passages(cls, passages: List[str]) -> List[str]:
+        max_passage_len = 5000
+        for idx, passage in enumerate(passages):
+            if len(passage) > max_passage_len:
+                raise ValueError(
+                    f"Context passage at index {idx} exceeds maximum allowed length of {max_passage_len} characters."
+                )
+        return passages
 
 
 class VerifyResponse(BaseModel):

@@ -49,6 +49,17 @@ def verify_id_token(token: str) -> Dict[str, Any]:
     Development authentication is only permitted when explicitly opt-in in development mode.
     """
     settings = get_settings()
+    is_dev_bypass = (
+        settings.environment.lower() == "development" and settings.allow_dev_auth is True
+    )
+
+    if is_dev_bypass and token == "dev-token":
+        return {
+            "uid": "dev_user_placeholder_uid",
+            "email": "dev@citelock.local",
+            "name": "Dev User",
+        }
+
     app = init_firebase_admin()
 
     if app is not None:
@@ -56,26 +67,12 @@ def verify_id_token(token: str) -> Dict[str, Any]:
             decoded = auth.verify_id_token(token)
             return decoded
         except Exception as e:
-            if settings.allow_dev_auth or settings.environment.lower() == "development":
-                return {
-                    "uid": "dev_user_placeholder_uid",
-                    "email": "dev@citelock.local",
-                    "name": "Dev User",
-                }
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid or expired authentication token: {str(e)}",
             )
 
-    # If Firebase Admin is not initialized (e.g. offline local development)
-    if settings.allow_dev_auth or settings.environment.lower() == "development":
-        return {
-            "uid": "dev_user_placeholder_uid",
-            "email": "dev@citelock.local",
-            "name": "Dev User",
-        }
-
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication service unconfigured and development bypass disabled.",
+        detail="Invalid or expired authentication token: authentication service unconfigured.",
     )
