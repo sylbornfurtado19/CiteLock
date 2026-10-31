@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,10 @@ from app.api.deps import get_workspace_scoped
 from app.schemas import QueryCreate, QueryResponse
 from app.pipeline.orchestrator import run_pipeline
 from app.security.injection_guard import check_prompt_injection
+from app.services.verification.judge import VerificationProviderError
+from app.providers.base import ProviderError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/queries", tags=["Queries"])
 
@@ -41,12 +46,17 @@ def execute_query(
 
     try:
         pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=payload.top_k)
+    except (VerificationProviderError, ProviderError) as e:
+        logger.error("Provider outage during query processing: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Verification service is temporarily unavailable. Please try again later.",
+        )
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception("Pipeline execution failed: %s", e)
+        logger.exception("Pipeline execution failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"RAG Pipeline execution error: {str(e)}",
+            detail="An internal error occurred while processing the query.",
         )
 
     query_obj = pipeline_result["query"]

@@ -1,7 +1,10 @@
 """Structured LLM judge service evaluating claims against evidence passages."""
 
+import logging
 from typing import List, Dict, Any
 import app.providers.base as providers_base
+
+logger = logging.getLogger(__name__)
 
 VALID_VERDICTS = {
     "supported",
@@ -9,7 +12,15 @@ VALID_VERDICTS = {
     "contradicted",
     "unsupported",
     "insufficient_evidence",
+    "verification_error",
 }
+
+
+class VerificationProviderError(Exception):
+    """Exception raised when claim verification encounters external provider outage."""
+    def __init__(self, message: str, details: Any = None):
+        super().__init__(message)
+        self.details = details
 
 
 def evaluate_claim_with_judge(claim_text: str, evidence_passages: List[str]) -> Dict[str, Any]:
@@ -59,8 +70,9 @@ def evaluate_claim_with_judge(claim_text: str, evidence_passages: List[str]) -> 
             "supporting_quotes": list(res.get("supporting_quotes") or []),
         }
     except Exception as e:
+        logger.error(f"Verification judge evaluation failed: {e}", exc_info=True)
         return {
-            "verdict": "insufficient_evidence" if not cleaned_passages else "unsupported",
+            "verdict": "verification_error",
             "confidence_score": 0.0,
             "rationale": f"Verification judge evaluation failed: {str(e)[:150]}",
             "supporting_quotes": [],

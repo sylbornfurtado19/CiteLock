@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator, AliasChoices
 
 
 class Verdict(str, Enum):
@@ -15,6 +15,7 @@ class Verdict(str, Enum):
     CONTRADICTED = "contradicted"
     UNSUPPORTED = "unsupported"
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    VERIFICATION_ERROR = "verification_error"
 
 
 # Workspace Schemas
@@ -53,7 +54,9 @@ class DocumentRead(BaseModel):
     file_size_bytes: int
     mime_type: str
     error_message: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, alias="metadata_")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, validation_alias=AliasChoices("metadata_", "metadata"), serialization_alias="metadata"
+    )
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -74,7 +77,9 @@ class ChunkRead(BaseModel):
     chunk_index: int
     content: str
     token_count: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, alias="metadata_")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, validation_alias=AliasChoices("metadata_", "metadata"), serialization_alias="metadata"
+    )
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -134,6 +139,15 @@ class QueryCreate(BaseModel):
     top_k: int = Field(default=5, ge=1, le=20)
     strictness: str = Field(default="high")
 
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, v: str) -> str:
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError("Prompt cannot be empty or whitespace only.")
+        return v
+
 
 class AnswerRead(BaseModel):
     id: UUID
@@ -150,6 +164,22 @@ class AnswerRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_from_model_config(cls, data: Any) -> Any:
+        cfg = getattr(data, "model_config_data", None)
+        if not isinstance(cfg, dict) and isinstance(data, dict):
+            cfg = data.get("model_config_data") or data.get("model_config") or {}
+        if isinstance(cfg, dict):
+            if isinstance(data, dict):
+                if not data.get("correction_history") and "correction_history" in cfg:
+                    data["correction_history"] = cfg["correction_history"]
+                if not data.get("verification_status") and "verification_status" in cfg:
+                    data["verification_status"] = cfg["verification_status"]
+                if not data.get("execution_metadata") and "execution_metadata" in cfg:
+                    data["execution_metadata"] = cfg["execution_metadata"]
+        return data
 
 
 class QueryResponse(BaseModel):
@@ -172,6 +202,9 @@ class AnswerAuditResponse(BaseModel):
     is_abstained: bool
     claims: List[ClaimRead]
     hallucination_rate: float
+    correction_history: List[Dict[str, Any]] = Field(default_factory=list)
+    verification_status: Optional[str] = None
+    execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     created_at: datetime
 
 

@@ -29,6 +29,10 @@ def execute_correction_loop(
     retries_limit = max_retries if max_retries is not None else settings.max_correction_retries
     llm = providers_base.get_llm_provider()
 
+    # Never attempt correction if any claim suffered a verification error
+    if any(c.get("verdict") == "verification_error" for c in verified_claims):
+        return draft_text, 0, False, verified_claims, []
+
     failed_claims = [
         c for c in verified_claims
         if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
@@ -118,9 +122,9 @@ def execute_correction_loop(
 
         try:
             revised_text = llm.complete(user_prompt, system_prompt=system_prompt, temperature=0.0).strip()
-        except Exception:
-            # Provider failure during revision pass: break and evaluate current state
-            break
+        except Exception as e:
+            logger.error(f"Provider failure during correction revision: {e}", exc_info=True)
+            raise
 
         if not revised_text:
             break
@@ -133,6 +137,9 @@ def execute_correction_loop(
         # 4. Re-extract claims and re-verify every claim in the revised text
         new_claims = extract_atomic_claims(revised_text)
         new_verification = verify_claims(new_claims, current_passages)
+
+        if any(c.get("verdict") == "verification_error" for c in new_verification["claims"]):
+            return revised_text, rounds_executed, False, new_verification["claims"], correction_history
 
         new_failures = [
             c for c in new_verification["claims"]
@@ -163,11 +170,10 @@ def execute_correction_loop(
     ]
 
     # If evidence remains insufficient or majority of claims remain unverified, abstain honestly
+    # Preserving the actual evaluated claims and their verdicts (do not re-extract the abstention sentence)
     if len(remaining_failures) >= max(1, len(current_claims) // 2):
         abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
-        abstained_claims = extract_atomic_claims(abstention_text)
-        abstained_verification = verify_claims(abstained_claims, current_passages)
-        return abstention_text, rounds_executed, True, abstained_verification["claims"], correction_history
+        return abstention_text, rounds_executed, True, current_claims, correction_history
 
     # Otherwise return revised text while preserving the actual unresolved verdicts (never claiming false success)
     return current_text, rounds_executed, False, current_claims, correction_history

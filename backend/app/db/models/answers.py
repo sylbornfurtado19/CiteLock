@@ -27,4 +27,16 @@ class Answer(Base):
     claims = relationship("Claim", back_populates="answer", cascade="all, delete-orphan")
     verification_runs = relationship("VerificationRun", back_populates="answer", cascade="all, delete-orphan")
 
+    @property
+    def correction_history(self):
+        return (self.model_config_data or {}).get("correction_history", [])
+
+    @property
+    def execution_metadata(self):
+        return (self.model_config_data or {}).get("execution_metadata", {})
+
+    @property
+    def verification_status(self):
+        return (self.model_config_data or {}).get("verification_status")
+
     # TODO: Add diff computation between draft_text and final_text for timeline visualization

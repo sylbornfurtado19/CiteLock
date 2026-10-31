@@ -8,6 +8,32 @@ from pydantic import BaseModel, Field
 import app.providers.base as providers_base
 
 
+def strip_citation_markers(text: str) -> tuple[str, List[int]]:
+    """
+    Extract cited passage indices from citation markers and strip them from the claim text.
+    Handles markers like '[Passage 1]', '[Passage 1, 2]', and '[Chunk ID: <uuid>]'.
+    Returns cleaned text and a list of integer cited passage numbers.
+    """
+    passage_matches = re.findall(r"\[Passage\s+(\d+(?:\s*,\s*\d+)*)\]", text, flags=re.IGNORECASE)
+    cited_passages: List[int] = []
+    for match in passage_matches:
+        for num_str in re.split(r"\s*,\s*", match):
+            if num_str.isdigit():
+                cited_passages.append(int(num_str))
+
+    # Strip [Passage ...] markers
+    cleaned = re.sub(r"\[Passage\s+\d+(?:\s*,\s*\d+)*\]", "", text, flags=re.IGNORECASE)
+
+    # Strip [Chunk ID: ...] markers
+    cleaned = re.sub(r"\[Chunk ID:\s*[^\]]+\]", "", cleaned, flags=re.IGNORECASE)
+
+    # Clean whitespace before punctuation
+    cleaned = re.sub(r"\s+([.,!?;:])", r"\1", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+
+    return cleaned, cited_passages
+
+
 class ExtractedClaim(BaseModel):
     """Structured atomic claim representation with position mapping and verification status."""
     claim_index: int
@@ -17,6 +43,7 @@ class ExtractedClaim(BaseModel):
     start_char_offset: Optional[int] = None
     end_char_offset: Optional[int] = None
     is_fallback: bool = False
+    cited_passages: List[int] = Field(default_factory=list)
 
 
 def _is_heading_or_question(sentence: str) -> bool:
@@ -47,22 +74,24 @@ def _fallback_sentence_claims(text: str) -> List[Dict[str, Any]]:
 
     for s in raw_sentences:
         cleaned = re.sub(r"^[-*•\d\.\)]\s*", "", s).strip()
-        if _is_heading_or_question(cleaned):
+        cleaned_claim, cited_passages = strip_citation_markers(cleaned)
+        if _is_heading_or_question(cleaned_claim):
             continue
 
-        cat = "numeric" if re.search(r"\b\d+(?:\.\d+)?%?\b", cleaned) else "factual"
+        cat = "numeric" if re.search(r"\b\d+(?:\.\d+)?%?\b", cleaned_claim) else "factual"
 
         start_offset = text.find(s)
         end_offset = start_offset + len(s) if start_offset != -1 else None
 
         claim_obj = ExtractedClaim(
             claim_index=len(claims),
-            claim_text=cleaned,
+            claim_text=cleaned_claim,
             category=cat,
             source_sentence=s,
             start_char_offset=start_offset if start_offset != -1 else None,
             end_char_offset=end_offset,
             is_fallback=True,
+            cited_passages=cited_passages,
         )
         claims.append(claim_obj.model_dump())
 
@@ -112,27 +141,35 @@ def extract_atomic_claims(draft_text: str) -> List[Dict[str, Any]]:
                 if not isinstance(item, dict):
                     continue
                 c_text = item.get("claim_text", "").strip()
-                if not c_text or _is_heading_or_question(c_text):
+                cleaned_claim, cited_passages = strip_citation_markers(c_text)
+                if not cleaned_claim or _is_heading_or_question(cleaned_claim):
                     continue
 
                 source_sentence = item.get("source_sentence")
+                if not cited_passages and source_sentence:
+                    _, cited_passages = strip_citation_markers(source_sentence)
+
                 start_offset = None
                 end_offset = None
                 if source_sentence and source_sentence in cleaned_text:
                     start_offset = cleaned_text.find(source_sentence)
                     end_offset = start_offset + len(source_sentence)
+                elif cleaned_claim in cleaned_text:
+                    start_offset = cleaned_text.find(cleaned_claim)
+                    end_offset = start_offset + len(cleaned_claim)
                 elif c_text in cleaned_text:
                     start_offset = cleaned_text.find(c_text)
                     end_offset = start_offset + len(c_text)
 
                 claim_model = ExtractedClaim(
                     claim_index=len(validated_claims),
-                    claim_text=c_text,
+                    claim_text=cleaned_claim,
                     category=item.get("category", "factual"),
                     source_sentence=source_sentence,
                     start_char_offset=start_offset,
                     end_char_offset=end_offset,
                     is_fallback=False,
+                    cited_passages=cited_passages,
                 )
                 validated_claims.append(claim_model.model_dump())
 

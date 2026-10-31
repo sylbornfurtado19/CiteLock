@@ -19,8 +19,10 @@ from app.services.retrieval.hybrid import retrieve_hybrid
 from app.services.generation.answer import generate_draft_answer
 from app.services.generation.claim_extractor import extract_atomic_claims
 from app.services.verification.engine import verify_claims
+from app.services.verification.judge import VerificationProviderError
 from app.services.verification.scoring import compute_verification_metrics
 from app.services.correction.controller import execute_correction_loop
+import app.providers.base as providers_base
 
 
 def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -> Dict[str, Any]:
@@ -35,27 +37,82 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
     """
     start_time = time.time()
 
-    # 1. Retrieve evidence
-    passages = retrieve_hybrid(db, workspace_id, prompt, top_k=top_k)
+    try:
+        # 1. Retrieve evidence
+        passages = retrieve_hybrid(db, workspace_id, prompt, top_k=top_k)
 
-    # 2. Generate Draft Answer
-    draft_answer = generate_draft_answer(prompt, passages)
+        # 2. Generate Draft Answer
+        draft_answer = generate_draft_answer(prompt, passages)
 
-    # 3. Decompose Atomic Claims
-    raw_claims = extract_atomic_claims(draft_answer)
+        # 3. Decompose Atomic Claims
+        raw_claims = extract_atomic_claims(draft_answer)
 
-    # 4. Verify Claims against Evidence
-    verification_result = verify_claims(raw_claims, passages)
+        # 4. Verify Claims against Evidence
+        verification_result = verify_claims(raw_claims, passages)
 
-    # 5. Targeted Self-Correction Loop
-    final_text, rounds, is_abstained, final_claims, correction_history = execute_correction_loop(
-        prompt,
-        draft_answer,
-        verification_result["claims"],
-        passages,
-        db=db,
-        workspace_id=workspace_id,
-    )
+        verification_errors = [c for c in verification_result["claims"] if c.get("verdict") == "verification_error"]
+        if verification_errors:
+            error_summary = f"{len(verification_errors)} claim(s) failed with verification_error: " + "; ".join(c.get("rationale", "") for c in verification_errors)
+            logger.error(error_summary)
+            try:
+                failed_query = Query(
+                    id=uuid.uuid4(),
+                    workspace_id=workspace_id,
+                    prompt=prompt,
+                    query_parameters={"top_k": top_k, "error_summary": error_summary[:500]},
+                    status="failed",
+                )
+                db.add(failed_query)
+                db.commit()
+            except Exception as db_err:
+                db.rollback()
+                logger.error("Failed persisting failed query record: %s", db_err)
+            raise VerificationProviderError(error_summary)
+
+        # 5. Targeted Self-Correction Loop
+        final_text, rounds, is_abstained, final_claims, correction_history = execute_correction_loop(
+            prompt,
+            draft_answer,
+            verification_result["claims"],
+            passages,
+            db=db,
+            workspace_id=workspace_id,
+        )
+
+        final_errors = [c for c in final_claims if c.get("verdict") == "verification_error"]
+        if final_errors:
+            error_summary = f"{len(final_errors)} claim(s) failed with verification_error: " + "; ".join(c.get("rationale", "") for c in final_errors)
+            logger.error(error_summary)
+            try:
+                failed_query = Query(
+                    id=uuid.uuid4(),
+                    workspace_id=workspace_id,
+                    prompt=prompt,
+                    query_parameters={"top_k": top_k, "error_summary": error_summary[:500]},
+                    status="failed",
+                )
+                db.add(failed_query)
+                db.commit()
+            except Exception as db_err:
+                db.rollback()
+                logger.error("Failed persisting failed query record: %s", db_err)
+            raise VerificationProviderError(error_summary)
+    except providers_base.ProviderError as e:
+        logger.error("Provider outage during pipeline execution: %s", e, exc_info=True)
+        try:
+            failed_query = Query(
+                id=uuid.uuid4(),
+                workspace_id=workspace_id,
+                prompt=prompt,
+                query_parameters={"top_k": top_k, "error_summary": str(e)[:500]},
+                status="failed",
+            )
+            db.add(failed_query)
+            db.commit()
+        except Exception as db_err:
+            db.rollback()
+            logger.error("Failed persisting failed query record: %s", db_err)
+        raise
 
     metrics = compute_verification_metrics(final_claims)
     latency_ms = int((time.time() - start_time) * 1000)
@@ -105,6 +162,7 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
                 "top_k": top_k,
                 "llm_provider": get_settings().llm_provider,
                 "correction_history": correction_history,
+                "verification_status": verification_status,
                 "execution_metadata": execution_metadata,
             },
         )

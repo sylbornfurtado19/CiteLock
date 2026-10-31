@@ -38,9 +38,10 @@ def get_answer_audit(
         )
 
     claims = db.query(Claim).filter(Claim.answer_id == answer.id).order_by(Claim.claim_index.asc()).all()
-    total_claims = len(claims)
-    hallucinated = sum(1 for c in claims if c.verdict in ["unsupported", "contradicted"])
-    hallucination_rate = round(hallucinated / total_claims, 4) if total_claims > 0 else 0.0
+    valid_claims = [c for c in claims if c.verdict != "verification_error"]
+    total_valid = len(valid_claims)
+    hallucinated = sum(1 for c in valid_claims if c.verdict in ["unsupported", "contradicted"])
+    hallucination_rate = round(hallucinated / total_valid, 4) if total_valid > 0 else 0.0
 
     return AnswerAuditResponse(
         answer_id=answer.id,
@@ -52,6 +53,9 @@ def get_answer_audit(
         is_abstained=answer.is_abstained,
         claims=claims,
         hallucination_rate=hallucination_rate,
+        correction_history=answer.correction_history,
+        verification_status=answer.verification_status,
+        execution_metadata=answer.execution_metadata,
         created_at=answer.created_at,
     )
 

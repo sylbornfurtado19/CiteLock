@@ -6,6 +6,7 @@ from app.services.verification.judge import evaluate_claim_with_judge, VALID_VER
 from app.services.verification.numeric import verify_numeric_precision
 from app.services.verification.provenance import trace_claim_provenance, ProvenanceError
 from app.services.verification.scoring import compute_verification_metrics
+from app.services.generation.claim_extractor import strip_citation_markers
 import app.providers.base as providers_base
 
 logger = logging.getLogger(__name__)
@@ -28,14 +29,17 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
 
     for idx, claim in enumerate(claims):
         claim_id = claim.get("id") or str(uuid.uuid4())
-        claim_text = claim.get("claim_text", "").strip()
+        raw_claim_text = claim.get("claim_text", "").strip()
+        clean_claim_text, cited_passages = strip_citation_markers(raw_claim_text)
+        if not cited_passages and claim.get("cited_passages"):
+            cited_passages = claim.get("cited_passages", [])
 
-        judge_res = evaluate_claim_with_judge(claim_text, passage_texts)
-        numeric_res = verify_numeric_precision(claim_text, passage_texts)
+        judge_res = evaluate_claim_with_judge(clean_claim_text, passage_texts)
+        numeric_res = verify_numeric_precision(clean_claim_text, passage_texts)
 
         provenance_error = None
         try:
-            raw_provenance = trace_claim_provenance(claim_text, retrieved_passages)
+            raw_provenance = trace_claim_provenance(clean_claim_text, retrieved_passages)
         except Exception as e:
             logger.error(f"Provenance tracking error for claim {claim_id}: {e}", exc_info=True)
             provenance_error = str(e)
@@ -59,32 +63,33 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
 
         rationale = judge_res.get("rationale", "")
 
-        # 1. Numeric consistency enforcement: detected contradictions override lenient judge verdicts
-        if not numeric_res.get("passed", True):
-            mismatches = numeric_res.get("mismatches", [])
-            mismatch_detail = "; ".join(m.get("reason", "") for m in mismatches)
-            if numeric_res.get("has_contradiction"):
-                verdict = "contradicted"
-                confidence = max(0.90, confidence)
-                rationale = f"[Numeric Contradiction] {mismatch_detail}. {rationale}".strip()
-            else:
-                if verdict == "supported":
+        if verdict != "verification_error":
+            # 1. Numeric consistency enforcement: detected contradictions override lenient judge verdicts
+            if not numeric_res.get("passed", True):
+                mismatches = numeric_res.get("mismatches", [])
+                mismatch_detail = "; ".join(m.get("reason", "") for m in mismatches)
+                if numeric_res.get("has_contradiction"):
+                    verdict = "contradicted"
+                    confidence = max(0.90, confidence)
+                    rationale = f"[Numeric Contradiction] {mismatch_detail}. {rationale}".strip()
+                else:
+                    if verdict == "supported":
+                        verdict = "unsupported"
+                        confidence = 0.0
+                        rationale = f"[Unverified Figures] {mismatch_detail}. {rationale}".strip()
+                    elif verdict == "partially_supported":
+                        rationale = f"[Unverified Figures] {mismatch_detail}. {rationale}".strip()
+
+            # 2. Evidence linkage reconciliation: supported claims MUST have traceable provenance
+            if verdict == "supported" and not valid_provenance:
+                if not passage_texts:
+                    verdict = "insufficient_evidence"
+                    confidence = 0.0
+                    rationale = "No evidence passages available to substantiate claim."
+                else:
                     verdict = "unsupported"
                     confidence = 0.0
-                    rationale = f"[Unverified Figures] {mismatch_detail}. {rationale}".strip()
-                elif verdict == "partially_supported":
-                    rationale = f"[Unverified Figures] {mismatch_detail}. {rationale}".strip()
-
-        # 2. Evidence linkage reconciliation: supported claims MUST have traceable provenance
-        if verdict == "supported" and not valid_provenance:
-            if not passage_texts:
-                verdict = "insufficient_evidence"
-                confidence = 0.0
-                rationale = "No evidence passages available to substantiate claim."
-            else:
-                verdict = "unsupported"
-                confidence = 0.0
-                rationale = f"Claim lacks direct textual provenance in retrieved passages. {rationale}".strip()
+                    rationale = f"Claim lacks direct textual provenance in retrieved passages. {rationale}".strip()
 
         if provenance_error:
             rationale = f"[Provenance Error: {provenance_error}] {rationale}".strip()
@@ -111,12 +116,14 @@ def verify_claims(claims: List[Dict[str, Any]], retrieved_passages: List[Dict[st
             "has_valid_provenance": len(valid_provenance) > 0,
             "provenance_error": provenance_error,
             "is_fallback_claim": claim.get("is_fallback", False),
+            "cited_passages": cited_passages,
         }
 
         claim_record = {
             "id": claim_id,
             "claim_index": claim.get("claim_index", idx),
-            "claim_text": claim_text,
+            "claim_text": clean_claim_text,
+            "cited_passages": cited_passages,
             "category": claim.get("category", "factual"),
             "verdict": verdict,
             "confidence_score": round(confidence, 2),

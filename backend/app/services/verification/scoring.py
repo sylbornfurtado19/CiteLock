@@ -15,6 +15,7 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
             "contradicted_count": 0,
             "unsupported_count": 0,
             "insufficient_evidence_count": 0,
+            "verification_error_count": 0,
             "unknown_count": 0,
             "verdict_distribution": {
                 "supported": 0,
@@ -22,6 +23,7 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
                 "contradicted": 0,
                 "unsupported": 0,
                 "insufficient_evidence": 0,
+                "verification_error": 0,
                 "unknown": 0,
             },
         }
@@ -33,6 +35,7 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
         "contradicted": 0,
         "unsupported": 0,
         "insufficient_evidence": 0,
+        "verification_error": 0,
         "unknown": 0,
     }
 
@@ -43,10 +46,14 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
         else:
             counts["unknown"] += 1
 
+    # Claims in verification_error state are never counted in the hallucination rate
+    verification_errors = counts.get("verification_error", 0)
+    evaluable_total = total - verification_errors
+
     # Hallucination includes contradicted + unsupported claims
     hallucinated = counts["contradicted"] + counts["unsupported"]
-    hallucination_rate = round(hallucinated / total, 4)
-    grounding_rate = round((counts["supported"] + 0.5 * counts["partially_supported"]) / total, 4)
+    hallucination_rate = round(hallucinated / evaluable_total, 4) if evaluable_total > 0 else 0.0
+    grounding_rate = round((counts["supported"] + 0.5 * counts["partially_supported"]) / evaluable_total, 4) if evaluable_total > 0 else 0.0
 
     return {
         "hallucination_rate": hallucination_rate,
@@ -57,6 +64,7 @@ def compute_verification_metrics(verified_claims: List[Dict[str, Any]]) -> Dict[
         "contradicted_count": counts["contradicted"],
         "unsupported_count": counts["unsupported"],
         "insufficient_evidence_count": counts["insufficient_evidence"],
+        "verification_error_count": counts["verification_error"],
         "unknown_count": counts["unknown"],
         "verdict_distribution": counts,
     }

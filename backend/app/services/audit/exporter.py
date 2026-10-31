@@ -34,6 +34,7 @@ def export_answer_audit_json(db: Session, answer_id: UUID, workspace_id: Optiona
         "contradicted": 0,
         "unsupported": 0,
         "insufficient_evidence": 0,
+        "verification_error": 0,
         "unknown": 0,
     }
 
@@ -61,9 +62,9 @@ def export_answer_audit_json(db: Session, answer_id: UUID, workspace_id: Optiona
             "evidence_links": ev_links_data,
         })
 
-    total_claims = len(claims)
+    valid_claims_count = sum(verdict_counts[k] for k in verdict_counts if k not in ("verification_error", "unknown"))
     hallucinated = verdict_counts["contradicted"] + verdict_counts["unsupported"]
-    hallucination_rate = round(hallucinated / total_claims, 4) if total_claims > 0 else 0.0
+    hallucination_rate = round(hallucinated / valid_claims_count, 4) if valid_claims_count > 0 else 0.0
 
     return {
         "version": "1.0",
@@ -75,11 +76,14 @@ def export_answer_audit_json(db: Session, answer_id: UUID, workspace_id: Optiona
         "final_text": answer.final_text,
         "correction_rounds": answer.correction_rounds,
         "is_abstained": answer.is_abstained,
+        "correction_history": answer.correction_history,
+        "verification_status": answer.verification_status,
+        "execution_metadata": answer.execution_metadata,
         "created_at": answer.created_at.isoformat() if answer.created_at else None,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "claims": claims_data,
         "metrics": {
-            "total_claims": total_claims,
+            "total_claims": len(claims),
             "hallucination_rate": hallucination_rate,
             "verdict_distribution": verdict_counts,
         },
