@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { Send, Bot, Sparkles, Loader2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Send, Bot, Sparkles, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnswerWithCitations } from "./AnswerWithCitations";
+import { PipelineProgressStepper } from "./PipelineProgressStepper";
 import { Answer } from "@/types";
-import { apiFetch } from "@/lib/api";
+import { PipelineEvent, PipelineStage } from "@/types/pipeline";
+import { streamPipelineQuery } from "@/lib/stream";
 
 interface Message {
   id: string;
@@ -25,25 +27,69 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Real-time streaming pipeline state
+  const [activeStage, setActiveStage] = useState<PipelineStage | null>(null);
+  const [pipelineEvents, setPipelineEvents] = useState<Record<PipelineStage, PipelineEvent>>(
+    {} as Record<PipelineStage, PipelineEvent>
+  );
+  const [isStreamComplete, setIsStreamComplete] = useState(false);
+  const [isStreamFailed, setIsStreamFailed] = useState(false);
+  const [streamErrorMessage, setStreamErrorMessage] = useState<string | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, activeStage, loading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMsg: Message = { id: Date.now().toString(), sender: "user", text: input };
+    const userPrompt = input.trim();
+    const userMsg: Message = { id: Date.now().toString(), sender: "user", text: userPrompt };
     setMessages((prev) => [...prev, userMsg]);
-    const currentInput = input;
     setInput("");
     setLoading(true);
 
-    try {
-      const response = await apiFetch<{ query_id: string; answer: Answer }>(
-        `/api/v1/workspaces/${workspaceId}/queries`,
-        {
-          method: "POST",
-          body: JSON.stringify({ prompt: currentInput, top_k: 5 }),
-        }
-      );
+    // Reset pipeline streaming state
+    setActiveStage("retrieval");
+    setPipelineEvents({} as Record<PipelineStage, PipelineEvent>);
+    setIsStreamComplete(false);
+    setIsStreamFailed(false);
+    setStreamErrorMessage(null);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      const response = await streamPipelineQuery({
+        workspaceId,
+        prompt: userPrompt,
+        topK: 5,
+        signal: abortController.signal,
+        onEvent: (event: PipelineEvent) => {
+          setActiveStage(event.stage);
+          setPipelineEvents((prev) => ({
+            ...prev,
+            [event.stage]: event,
+          }));
+        },
+        onComplete: () => {
+          setIsStreamComplete(true);
+        },
+        onError: (err: Error) => {
+          setIsStreamFailed(true);
+          setStreamErrorMessage(err.message);
+        },
+      });
+
+      // Transition smoothly to final verified answer
       setMessages((prev) => [
         ...prev,
         {
@@ -53,21 +99,25 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         },
       ]);
     } catch (err: unknown) {
-      console.error(err);
+      console.error("Pipeline streaming error:", err);
+      setIsStreamFailed(true);
       const errorMessage =
         err instanceof Error
           ? err.message
           : "An error occurred executing the audited RAG pipeline. Check backend connection.";
+      setStreamErrorMessage(errorMessage);
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           sender: "assistant",
-          text: errorMessage,
+          text: `Pipeline Execution Interrupted: ${errorMessage}`,
         },
       ]);
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -105,12 +155,26 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
             </div>
           </div>
         ))}
+
+        {/* Live Real-Time Pipeline Stepper */}
         {loading && (
-          <div className="flex items-center gap-2.5 text-xs text-purple-300 font-mono py-1 animate-fade-in">
-            <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-            <span>Auditing claims & verifying source provenance against pgvector...</span>
+          <div className="flex gap-3 animate-fade-in duration-300">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="w-full max-w-2xl">
+              <PipelineProgressStepper
+                events={pipelineEvents}
+                activeStage={activeStage}
+                isComplete={isStreamComplete}
+                isFailed={isStreamFailed}
+                errorMessage={streamErrorMessage}
+              />
+            </div>
           </div>
         )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Form */}
@@ -124,7 +188,11 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
             className="flex-1 rounded-xl border border-purple-900/40 bg-[#070311] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder:text-[#8D829F] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-200"
             disabled={loading}
           />
-          <Button type="submit" disabled={loading || !input.trim()} className="gap-1.5 active:scale-95 transition-transform duration-150">
+          <Button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="gap-1.5 active:scale-95 transition-transform duration-150"
+          >
             <Sparkles className="h-4 w-4" />
             <span>Query</span>
           </Button>

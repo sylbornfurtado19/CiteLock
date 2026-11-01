@@ -3,7 +3,8 @@
 import logging
 import time
 import uuid
-from typing import Dict, Any
+from datetime import datetime
+from typing import Dict, Any, Callable, Optional
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,13 @@ from app.services.correction.controller import execute_correction_loop
 import app.providers.base as providers_base
 
 
-def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -> Dict[str, Any]:
+def run_pipeline(
+    db: Session,
+    workspace_id: UUID,
+    prompt: str,
+    top_k: int = 5,
+    on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+) -> Dict[str, Any]:
     """
     Execute complete audited RAG pipeline:
     1. Hybrid retrieval (vector + keyword)
@@ -37,21 +44,42 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
     """
     start_time = time.time()
 
+    def emit(stage: str, status: str, message: str, data: Optional[Dict[str, Any]] = None):
+        if on_event:
+            try:
+                on_event({
+                    "stage": stage,
+                    "status": status,
+                    "message": message,
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "data": data or {},
+                })
+            except Exception as evt_err:
+                logger.warning("Error invoking on_event callback: %s", evt_err)
+
     try:
         # 1. Retrieve evidence
+        emit("retrieval", "running", "Retrieving relevant reference passages from vector and keyword index...", {"top_k": top_k})
         passages = retrieve_hybrid(db, workspace_id, prompt, top_k=top_k)
+        emit("retrieval", "completed", f"Retrieved {len(passages)} reference passage(s) across dense vector and lexical indices.", {"passages_count": len(passages)})
 
         # 2. Generate Draft Answer
+        emit("generation", "running", "Synthesizing grounded draft answer from retrieved passages...")
         draft_answer = generate_draft_answer(prompt, passages)
+        emit("generation", "completed", "Synthesized grounded draft answer with source citations.")
 
         # 3. Decompose Atomic Claims
+        emit("decomposition", "running", "Decomposing answer into atomic, verifiable factual claims...")
         raw_claims = extract_atomic_claims(draft_answer)
+        emit("decomposition", "completed", f"Decomposed answer into {len(raw_claims)} atomic factual claim(s).", {"claim_count": len(raw_claims)})
 
         # 4. Verify Claims against Evidence
+        emit("verification", "running", "Auditing atomic claims across structured judge, numeric checks, and citation provenance...")
         verification_result = verify_claims(raw_claims, passages)
 
         verification_errors = [c for c in verification_result["claims"] if c.get("verdict") == "verification_error"]
         if verification_errors:
+            emit("verification", "failed", "Verification error encountered during claim audit pass.")
             error_summary = f"{len(verification_errors)} claim(s) failed with verification_error: " + "; ".join(c.get("rationale", "") for c in verification_errors)
             logger.error(error_summary)
             try:
@@ -69,7 +97,10 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
                 logger.error("Failed persisting failed query record: %s", db_err)
             raise VerificationProviderError(error_summary)
 
+        emit("verification", "completed", f"Audited {len(verification_result['claims'])} claim(s) against retrieved evidence.", {"claims_count": len(verification_result["claims"])})
+
         # 5. Targeted Self-Correction Loop
+        emit("correction", "running", "Evaluating verification verdicts and executing self-correction if required...")
         final_text, rounds, is_abstained, final_claims, correction_history = execute_correction_loop(
             prompt,
             draft_answer,
@@ -81,6 +112,7 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
 
         final_errors = [c for c in final_claims if c.get("verdict") == "verification_error"]
         if final_errors:
+            emit("correction", "failed", "Verification error encountered during self-correction loop.")
             error_summary = f"{len(final_errors)} claim(s) failed with verification_error: " + "; ".join(c.get("rationale", "") for c in final_errors)
             logger.error(error_summary)
             try:
@@ -97,7 +129,16 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
                 db.rollback()
                 logger.error("Failed persisting failed query record: %s", db_err)
             raise VerificationProviderError(error_summary)
+
+        if is_abstained:
+            corr_msg = "Pipeline abstained due to insufficient or ungrounded evidence."
+        elif rounds > 0:
+            corr_msg = f"Self-correction concluded after {rounds} revision round(s)."
+        else:
+            corr_msg = "All factual claims fully supported; no correction required."
+        emit("correction", "completed", corr_msg, {"rounds": rounds, "is_abstained": is_abstained, "final_claims_count": len(final_claims)})
     except providers_base.ProviderError as e:
+        emit("execution", "failed", f"Provider outage during pipeline execution: {str(e)}")
         logger.error("Provider outage during pipeline execution: %s", e, exc_info=True)
         try:
             failed_query = Query(
@@ -141,6 +182,7 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
 
     # 6. Database Persistence with atomic transaction rollback
     try:
+        emit("finalizing", "running", "Persisting verified answer, claim relations, and audit trail ledger...")
         query_record = Query(
             id=uuid.uuid4(),
             workspace_id=workspace_id,
@@ -302,9 +344,11 @@ def run_pipeline(db: Session, workspace_id: UUID, prompt: str, top_k: int = 5) -
         db.refresh(query_record)
         db.refresh(answer_record)
         answer_record.claims = persisted_claim_objs
+        emit("finalizing", "completed", "Pipeline persistence and audit ledger finalized.", {"answer_id": str(answer_record.id), "verification_status": verification_status})
     except Exception as e:
         db.rollback()
         logger.exception("Pipeline persistence failed for query in workspace %s: %s", workspace_id, e)
+        emit("finalizing", "failed", f"Persistence failure: {str(e)}")
         raise
 
     return {
