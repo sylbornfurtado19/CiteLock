@@ -1,0 +1,98 @@
+[
+  {
+    "id": "case-fin-001",
+    "domain": "Financial Audit",
+    "query": "What was CiteLock's Q3 operating margin and ARR growth rate?",
+    "passages": [
+      {
+        "id": "chunk-fin-01",
+        "chunk_id": "chunk-fin-01",
+        "filename": "Q3_Financial_Review.pdf",
+        "content": "In Q3 2026, CiteLock recorded an operating margin of 18.4%. Annual Recurring Revenue (ARR) grew by 42% year-over-year to reach $14.2M."
+      },
+      {
+        "id": "chunk-fin-02",
+        "chunk_id": "chunk-fin-02",
+        "filename": "Q3_Financial_Review.pdf",
+        "content": "Operating expenses decreased by 6% due to automated cloud infrastructure efficiencies."
+      }
+    ]
+  },
+  {
+    "id": "case-legal-002",
+    "domain": "Regulatory Compliance",
+    "query": "What is the mandatory personal data retention schedule and breach notification timeframe?",
+    "passages": [
+      {
+        "id": "chunk-legal-01",
+        "chunk_id": "chunk-legal-01",
+        "filename": "Compliance_Charter_v2.pdf",
+        "content": "Under Article 33 compliance, personal audit logs are retained for precisely 90 days following customer account termination."
+      },
+      {
+        "id": "chunk-legal-02",
+        "chunk_id": "chunk-legal-02",
+        "filename": "Compliance_Charter_v2.pdf",
+        "content": "Security incidents involving personal identifiable data require notification to supervisory authorities within 72 hours of discovery."
+      }
+    ]
+  },
+  {
+    "id": "case-sec-003",
+    "domain": "Cybersecurity & Access",
+    "query": "What cryptographic algorithms and session timeout policies are enforced for enterprise tenants?",
+    "passages": [
+      {
+        "id": "chunk-sec-01",
+        "chunk_id": "chunk-sec-01",
+        "filename": "Security_Architecture.pdf",
+        "content": "CiteLock mandates AES-256-GCM encryption for all documents at rest and TLS 1.3 for data in transit."
+      },
+      {
+        "id": "chunk-sec-02",
+        "chunk_id": "chunk-sec-02",
+        "filename": "Security_Architecture.pdf",
+        "content": "Tenant authentication sessions automatically expire after 15 minutes of inactivity, requiring WebAuthn re-verification."
+      }
+    ]
+  },
+  {
+    "id": "case-med-004",
+    "domain": "Clinical Trials",
+    "query": "What was the observed efficacy rate in Phase 3 trials and what adverse events were documented?",
+    "passages": [
+      {
+        "id": "chunk-med-01",
+        "chunk_id": "chunk-med-01",
+        "filename": "Trial_Cohort_Summary.pdf",
+        "content": "In the double-blind Phase 3 cohort comprising 1,200 subjects, the primary efficacy endpoint was achieved at 87.6%."
+      },
+      {
+        "id": "chunk-med-02",
+        "chunk_id": "chunk-med-02",
+        "filename": "Trial_Cohort_Summary.pdf",
+        "content": "Adverse events were limited to mild transient fatigue reported in 4.2% of participants, with zero severe adverse incidents."
+      }
+    ]
+  },
+  {
+    "id": "case-infra-005",
+    "domain": "Infrastructure & SLA",
+    "query": "What are the SLA uptime guarantees and disaster recovery RTO and RPO objectives?",
+    "passages": [
+      {
+        "id": "chunk-infra-01",
+        "chunk_id": "chunk-infra-01",
+        "filename": "SLA_Commitments.pdf",
+        "content": "The enterprise tier provides a 99.95% monthly uptime service level agreement backed by financial service credits."
+      },
+      {
+        "id": "chunk-infra-02",
+        "chunk_id": "chunk-infra-02",
+        "filename": "SLA_Commitments.pdf",
+        "content": "Multi-region disaster recovery architecture maintains a Recovery Time Objective (RTO) of 15 minutes and Recovery Point Objective (RPO) of 0 seconds."
+      }
+    ]
+  }
+]
+

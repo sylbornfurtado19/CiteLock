@@ -327,3 +327,47 @@ class ConnectivityTestResponse(BaseModel):
     status: str
     total_latency_ms: float
     services: Dict[str, ServiceHealthItem]
+
+
+# Evaluation Benchmark Schemas
+class SystemBenchmarkMetrics(BaseModel):
+    system_id: str
+    name: str
+    description: str
+    hallucination_rate: float
+    faithfulness: float
+    avg_latency_ms: float
+    total_claims: int
+    supported_claims: int
+    unsupported_claims: int
+    contradicted_claims: int
+    abstained_count: int
+    correction_rounds_avg: float
+
+
+class BenchmarkRunResponse(BaseModel):
+    id: str
+    workspace_id: Optional[str] = None
+    dataset_name: str
+    total_test_cases: int
+    created_at: str
+    execution_time_ms: float
+    hallucination_reduction_pct: float
+    systems: Dict[str, SystemBenchmarkMetrics]
+
+
+class BenchmarkRunRequest(BaseModel):
+    dataset_path: Optional[str] = None
+    sample_size: Optional[int] = Field(default=5, ge=1, le=20)
+
+
+class BenchmarkHistoryItem(BaseModel):
+    id: str
+    workspace_id: str
+    dataset_name: str
+    total_test_cases: int
+    created_at: str
+    execution_time_ms: float
+    hallucination_reduction_pct: float
+    citelock_hallucination_rate: float
+    plain_rag_hallucination_rate: float

@@ -188,3 +188,45 @@ export interface ConnectivityTestResponse {
     llm: ServiceHealthItem;
   };
 }
+
+export interface SystemBenchmarkMetrics {
+  system_id: string;
+  name: string;
+  description: string;
+  hallucination_rate: number;
+  faithfulness: number;
+  avg_latency_ms: number;
+  total_claims: number;
+  supported_claims: number;
+  unsupported_claims: number;
+  contradicted_claims: number;
+  abstained_count: number;
+  correction_rounds_avg: number;
+}
+
+export interface BenchmarkRunResponse {
+  id: string;
+  workspace_id?: string | null;
+  dataset_name: string;
+  total_test_cases: number;
+  created_at: string;
+  execution_time_ms: number;
+  hallucination_reduction_pct: number;
+  systems: {
+    plain_rag: SystemBenchmarkMetrics;
+    single_verify: SystemBenchmarkMetrics;
+    citelock: SystemBenchmarkMetrics;
+  };
+}
+
+export interface BenchmarkHistoryItem {
+  id: string;
+  workspace_id: string;
+  dataset_name: string;
+  total_test_cases: number;
+  created_at: string;
+  execution_time_ms: number;
+  hallucination_reduction_pct: number;
+  citelock_hallucination_rate: number;
+  plain_rag_hallucination_rate: number;
+}
