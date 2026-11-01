@@ -81,6 +81,7 @@ class ChunkRead(BaseModel):
         default_factory=dict, validation_alias=AliasChoices("metadata_", "metadata"), serialization_alias="metadata"
     )
     created_at: datetime
+    document_filename: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -105,6 +106,9 @@ class EvidenceLinkRead(BaseModel):
     exact_quote: Optional[str] = None
     start_char_offset: Optional[int] = None
     end_char_offset: Optional[int] = None
+    chunk_content: Optional[str] = None
+    document_id: Optional[UUID] = None
+    page_number: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

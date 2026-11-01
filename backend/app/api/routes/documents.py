@@ -9,7 +9,8 @@ from app.db.session import get_db, SessionLocal
 from app.db.models.workspaces import Workspace
 from app.db.models.documents import Document
 from app.api.deps import get_workspace_scoped
-from app.schemas import DocumentRead, DocumentSignedUrlResponse, SearchResult
+from app.schemas import DocumentRead, DocumentSignedUrlResponse, SearchResult, ChunkRead
+from app.db.models.chunks import Chunk
 from app.security.file_validation import validate_file_upload, compute_checksum, sanitize_filename
 import app.providers.base as providers_base
 from app.providers.storage_base import StorageError
@@ -61,6 +62,27 @@ def search_workspace_documents(
         return search_lexical(db, workspace.id, q, top_k=top_k)
     else:
         return retrieve_hybrid(db, workspace.id, q, top_k=top_k)
+
+
+@router.get("/chunks/{chunk_id}", response_model=ChunkRead)
+def get_document_chunk(
+    chunk_id: UUID,
+    workspace: Workspace = Depends(get_workspace_scoped),
+    db: Session = Depends(get_db),
+):
+    """Retrieve full text content, offsets, and metadata for a document chunk strictly scoped to workspace."""
+    chunk = (
+        db.query(Chunk)
+        .join(Document, Chunk.document_id == Document.id)
+        .filter(Chunk.id == chunk_id, Document.workspace_id == workspace.id)
+        .first()
+    )
+    if not chunk:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chunk not found or inaccessible in this workspace",
+        )
+    return chunk
 
 
 @router.get("", response_model=List[DocumentRead])

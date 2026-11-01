@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -27,4 +28,18 @@ class EvidenceLink(Base):
     claim = relationship("Claim", back_populates="evidence_links")
     chunk = relationship("Chunk", back_populates="evidence_links")
 
-    # TODO: Implement character offset validation against original document text
+    @property
+    def chunk_content(self) -> Optional[str]:
+        return self.chunk.content if self.chunk else None
+
+    @property
+    def document_id(self) -> Optional[uuid.UUID]:
+        return self.chunk.document_id if self.chunk else None
+
+    @property
+    def page_number(self) -> Optional[int]:
+        if self.chunk and self.chunk.metadata_:
+            meta = self.chunk.metadata_
+            if isinstance(meta, dict):
+                return meta.get("page_number")
+        return None

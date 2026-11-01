@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, Requ
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db, SessionLocal
+import app.db.session
+from app.db.session import get_db
 from app.db.models.workspaces import Workspace
 from app.api.deps import get_workspace_scoped
 from app.schemas import QueryCreate, QueryResponse
@@ -27,7 +28,7 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
     event_queue: queue.Queue = queue.Queue()
 
     def worker():
-        thread_db = SessionLocal()
+        thread_db = app.db.session.SessionLocal()
         try:
             def on_event(evt):
                 event_queue.put(("pipeline_event", evt))

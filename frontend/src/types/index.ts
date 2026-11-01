@@ -36,14 +36,36 @@ export interface DocumentSignedUrlResponse {
   expires_in_seconds: number;
 }
 
+export interface Chunk {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  token_count?: number;
+  metadata?: {
+    page_number?: number;
+    section_title?: string;
+    start_char_offset?: number;
+    end_char_offset?: number;
+    source_filename?: string;
+    [key: string]: any;
+  };
+  document_filename?: string;
+  created_at: string;
+}
+
 export interface EvidenceLink {
   id: string;
   claim_id: string;
   chunk_id: string;
+  document_filename?: string;
   relevance_score?: number;
   exact_quote?: string;
   start_char_offset?: number;
   end_char_offset?: number;
+  chunk_content?: string;
+  document_id?: string;
+  page_number?: number;
 }
 
 export interface Claim {

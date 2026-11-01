@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -27,4 +28,6 @@ class Chunk(Base):
     document = relationship("Document", back_populates="chunks")
     evidence_links = relationship("EvidenceLink", back_populates="chunk", passive_deletes=True)
 
-    # TODO: Add HNSW index configuration in migration and support variable embedding dimensions
+    @property
+    def document_filename(self) -> Optional[str]:
+        return self.document.filename if self.document else None
