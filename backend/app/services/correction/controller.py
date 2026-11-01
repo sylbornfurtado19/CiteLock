@@ -1,7 +1,7 @@
 """Self-correction controller managing iterative revision loops, targeted evidence retrieval, and abstention."""
 
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from app.config import get_settings
 import app.providers.base as providers_base
 from app.services.generation.claim_extractor import extract_atomic_claims
@@ -19,6 +19,8 @@ def execute_correction_loop(
     max_retries: int | None = None,
     db: Any = None,
     workspace_id: Any = None,
+    abstention_policy: str = "strict",
+    llm_provider: Optional[str] = None,
 ) -> Tuple[str, int, bool, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Iteratively correct unsupported, contradicted, or partially supported claims up to maximum bounded retries.
@@ -27,7 +29,7 @@ def execute_correction_loop(
     """
     settings = get_settings()
     retries_limit = max_retries if max_retries is not None else settings.max_correction_retries
-    llm = providers_base.get_llm_provider()
+    llm = providers_base.get_llm_provider(llm_provider) if llm_provider else providers_base.get_llm_provider()
 
     # Never attempt correction if any claim suffered a verification error
     if any(c.get("verdict") == "verification_error" for c in verified_claims):
@@ -170,11 +172,16 @@ def execute_correction_loop(
         if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
     ]
 
-    # If evidence remains insufficient or majority of claims remain unverified, abstain honestly
-    # Preserving the actual evaluated claims and their verdicts (do not re-extract the abstention sentence)
-    if len(remaining_failures) >= max(1, len(current_claims) // 2):
-        abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
-        return abstention_text, rounds_executed, True, current_claims, correction_history
+    # Evaluate abstention based on configured workspace policy: strict vs soft
+    if abstention_policy == "strict":
+        if len(remaining_failures) >= max(1, len(current_claims) // 2):
+            abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
+            return abstention_text, rounds_executed, True, current_claims, correction_history
+    else:
+        # Soft warning policy: only abstain if every single claim fails
+        if len(remaining_failures) == len(current_claims) and len(current_claims) > 1:
+            abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
+            return abstention_text, rounds_executed, True, current_claims, correction_history
 
     # Otherwise return revised text while preserving the actual unresolved verdicts (never claiming false success)
     return current_text, rounds_executed, False, current_claims, correction_history

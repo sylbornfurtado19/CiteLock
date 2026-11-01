@@ -92,7 +92,7 @@ def mock_embeddings(monkeypatch):
 def mock_llm(monkeypatch):
     """Provide deterministic mock LLM provider for pipeline tests."""
     provider = MockLLMProvider()
-    monkeypatch.setattr(providers_base, "get_llm_provider", lambda: provider)
+    monkeypatch.setattr(providers_base, "get_llm_provider", lambda *args, **kwargs: provider)
     return provider
 
 

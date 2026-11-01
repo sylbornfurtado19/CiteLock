@@ -281,3 +281,49 @@ class VerifyResponse(BaseModel):
     supporting_quotes: List[str] = []
 
 # TODO: Add schema validation for streaming SSE audit tokens
+
+
+# System & Workspace Settings Schemas
+class DeploymentInfo(BaseModel):
+    database_engine: str
+    storage_provider: str
+    embedding_provider: str
+    embedding_dim: int
+    environment: str
+    available_llm_providers: List[str] = Field(default_factory=list)
+
+
+class WorkspaceSettingsRead(BaseModel):
+    workspace_id: UUID
+    retrieval_top_k: int = Field(default=5, ge=1, le=20)
+    max_correction_retries: int = Field(default=2, ge=1, le=5)
+    abstention_policy: str = Field(default="strict")
+    preferred_llm_provider: Optional[str] = None
+    available_llm_providers: List[str] = Field(default_factory=list)
+    deployment_info: DeploymentInfo
+
+
+class WorkspaceSettingsUpdate(BaseModel):
+    retrieval_top_k: Optional[int] = Field(None, ge=1, le=20)
+    max_correction_retries: Optional[int] = Field(None, ge=1, le=5)
+    abstention_policy: Optional[str] = None
+    preferred_llm_provider: Optional[str] = None
+
+    @field_validator("abstention_policy")
+    @classmethod
+    def validate_abstention(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("strict", "soft"):
+            raise ValueError("abstention_policy must be either 'strict' or 'soft'")
+        return v
+
+
+class ServiceHealthItem(BaseModel):
+    status: str
+    latency_ms: float
+    details: Optional[str] = None
+
+
+class ConnectivityTestResponse(BaseModel):
+    status: str
+    total_latency_ms: float
+    services: Dict[str, ServiceHealthItem]

@@ -131,6 +131,12 @@ def execute_query(
             detail=f"Query rejected by Prompt Injection Guard: {msg}",
         )
 
+    # Resolve effective top_k respecting workspace settings
+    top_k = payload.top_k
+    ws_settings = (workspace.settings if hasattr(workspace, "settings") else None) or {}
+    if payload.top_k == 5 and "retrieval_top_k" in ws_settings:
+        top_k = ws_settings["retrieval_top_k"]
+
     # Determine whether streaming transport is requested
     is_streaming_requested = stream or (
         request and request.headers.get("accept") == "text/event-stream"
@@ -138,7 +144,7 @@ def execute_query(
 
     if is_streaming_requested:
         return StreamingResponse(
-            _generate_pipeline_sse(workspace.id, payload.prompt, payload.top_k),
+            _generate_pipeline_sse(workspace.id, payload.prompt, top_k),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -148,7 +154,7 @@ def execute_query(
         )
 
     try:
-        pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=payload.top_k)
+        pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=top_k)
     except (VerificationProviderError, ProviderError) as e:
         logger.error("Provider outage during query processing: %s", e, exc_info=True)
         raise HTTPException(

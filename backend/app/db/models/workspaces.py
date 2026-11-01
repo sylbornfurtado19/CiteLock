@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -19,10 +19,19 @@ class Workspace(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    settings_ = Column("settings", JSONB, default=dict, nullable=False)
 
     owner = relationship("User", back_populates="workspaces")
     documents = relationship("Document", back_populates="workspace", cascade="all, delete-orphan")
     queries = relationship("Query", back_populates="workspace", cascade="all, delete-orphan")
     audit_events = relationship("AuditEvent", back_populates="workspace", cascade="all, delete-orphan")
+
+    @property
+    def settings(self) -> dict:
+        return self.settings_ if isinstance(self.settings_, dict) else {}
+
+    @settings.setter
+    def settings(self, val: dict):
+        self.settings_ = val
 
     # TODO: Implement workspace member invitations and tiered role-based access control

@@ -102,6 +102,8 @@ export interface CorrectionRound {
   failed_count_after?: number;
   new_evidence_chunks?: string[];
   metrics?: Record<string, any>;
+  unsupported_count?: number;
+  retrieved_passages?: string[];
 }
 
 export interface AnswerAudit {
@@ -119,6 +121,8 @@ export interface AnswerAudit {
   execution_metadata?: Record<string, any>;
   created_at: string;
 }
+
+export type AnswerAuditResponse = AnswerAudit;
 
 export interface AuditListItem {
   answer_id: string;
@@ -148,4 +152,39 @@ export interface AnalyticsSummary {
   grounding_rate?: number;
   verdict_distribution: Record<Verdict, number>;
   avg_latency_ms: number;
+}
+
+export interface DeploymentInfo {
+  database_engine: string;
+  storage_provider: string;
+  embedding_provider: string;
+  embedding_dim: number;
+  environment: string;
+  available_llm_providers: string[];
+}
+
+export interface WorkspaceSettings {
+  workspace_id: string;
+  retrieval_top_k: number;
+  max_correction_retries: number;
+  abstention_policy: "strict" | "soft";
+  preferred_llm_provider: string | null;
+  available_llm_providers: string[];
+  deployment_info: DeploymentInfo;
+}
+
+export interface ServiceHealthItem {
+  status: "operational" | "degraded" | "error";
+  latency_ms: number;
+  details?: string;
+}
+
+export interface ConnectivityTestResponse {
+  status: "healthy" | "degraded" | "error";
+  total_latency_ms: number;
+  services: {
+    database: ServiceHealthItem;
+    storage: ServiceHealthItem;
+    llm: ServiceHealthItem;
+  };
 }

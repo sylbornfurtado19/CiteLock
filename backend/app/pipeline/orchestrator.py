@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db.models.queries import Query
 from app.db.models.answers import Answer
+from app.db.models.workspaces import Workspace
 from app.db.models.claims import Claim
 from app.db.models.evidence_links import EvidenceLink
 from app.db.models.verification_runs import VerificationRun
@@ -101,13 +102,30 @@ def run_pipeline(
 
         # 5. Targeted Self-Correction Loop
         emit("correction", "running", "Evaluating verification verdicts and executing self-correction if required...")
+        # Read workspace policy overrides if configured
+        ws_settings = {}
+        if workspace_id and db:
+            try:
+                ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+                if ws and ws.settings_:
+                    ws_settings = ws.settings_
+            except Exception as ws_err:
+                logger.warning("Could not read workspace settings for %s: %s", workspace_id, ws_err)
+
+        max_retries = ws_settings.get("max_correction_retries")
+        abstention_policy = ws_settings.get("abstention_policy", "strict")
+        preferred_llm = ws_settings.get("preferred_llm_provider")
+
         final_text, rounds, is_abstained, final_claims, correction_history = execute_correction_loop(
             prompt,
             draft_answer,
             verification_result["claims"],
             passages,
+            max_retries=max_retries,
             db=db,
             workspace_id=workspace_id,
+            abstention_policy=abstention_policy,
+            llm_provider=preferred_llm,
         )
 
         final_errors = [c for c in final_claims if c.get("verdict") == "verification_error"]

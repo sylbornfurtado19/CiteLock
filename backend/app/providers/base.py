@@ -201,19 +201,74 @@ class MockLLMProvider(LLMProvider):
             }
 
 
-def get_llm_provider() -> LLMProvider:
+def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
     """Factory to instantiate configured LLM provider."""
     settings = get_settings()
-    provider_name = settings.llm_provider.lower()
-    if provider_name == "mock":
+    provider = (provider_name or settings.llm_provider).lower()
+    if provider == "mock":
         return MockLLMProvider()
-    if provider_name == "gemini":
+    if provider == "gemini":
         from app.providers.gemini_adapter import GeminiProvider
         return GeminiProvider()
-    if provider_name == "openai":
+    if provider == "openai":
         from app.providers.openai_adapter import OpenAIProvider
         return OpenAIProvider()
-    raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
+    raise ValueError(f"Unknown LLM provider: {provider}")
+
+
+def get_available_llm_providers() -> List[str]:
+    """Return list of configured model providers that can be safely selected."""
+    import os
+    settings = get_settings()
+    providers = []
+
+    # Mock is available in test/development environments or if explicitly set as default
+    if settings.llm_provider == "mock" or settings.environment in ("test", "development"):
+        providers.append("mock")
+
+    # OpenAI is available if non-placeholder key is provided
+    openai_key = os.environ.get("OPENAI_API_KEY") or (settings.llm_api_key if settings.llm_provider == "openai" else None)
+    if openai_key and "placeholder" not in openai_key.lower():
+        providers.append("openai")
+    elif settings.llm_provider == "openai" and settings.llm_api_key and "placeholder" not in settings.llm_api_key.lower():
+        providers.append("openai")
+
+    # Gemini is available if non-placeholder key is provided
+    gemini_key = os.environ.get("GEMINI_API_KEY") or (settings.llm_api_key if settings.llm_provider == "gemini" else None)
+    if gemini_key and "placeholder" not in gemini_key.lower():
+        providers.append("gemini")
+    elif settings.llm_provider == "gemini" and settings.llm_api_key and "placeholder" not in settings.llm_api_key.lower():
+        providers.append("gemini")
+
+    # Always ensure active default provider is present
+    if not providers:
+        providers.append(settings.llm_provider.lower())
+
+    return sorted(list(set(providers)))
+
+
+def get_deployment_info() -> Dict[str, Any]:
+    """Return read-only architectural deployment parameters without sensitive credentials."""
+    settings = get_settings()
+
+    db_engine = "Neon PostgreSQL (pgvector HNSW)"
+    if "sqlite" in settings.database_url.lower():
+        db_engine = "SQLite (in-memory)"
+
+    storage_desc = "Firebase Cloud Storage"
+    if settings.storage_provider.lower() != "firebase" or not settings.firebase_storage_bucket:
+        storage_desc = "Local / In-Memory Vault"
+
+    emb_model = settings.openai_embedding_model if settings.embedding_provider == "openai" else settings.gemini_embedding_model
+
+    return {
+        "database_engine": db_engine,
+        "storage_provider": storage_desc,
+        "embedding_provider": f"{settings.embedding_provider} ({emb_model})",
+        "embedding_dim": settings.embedding_dim,
+        "environment": settings.environment,
+        "available_llm_providers": get_available_llm_providers(),
+    }
 
 
 def get_embedding_provider() -> EmbeddingProvider:
