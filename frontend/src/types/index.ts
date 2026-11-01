@@ -26,7 +26,10 @@ export interface Document {
   status: "uploaded" | "processing" | "indexed" | "failed" | "pending" | "error";
   file_size_bytes: number;
   mime_type: string;
+  error_message?: string | null;
+  metadata?: Record<string, any>;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DocumentSignedUrlResponse {

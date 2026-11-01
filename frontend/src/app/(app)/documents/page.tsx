@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SkeletonTableRow } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/lib/workspace";
 import { notify } from "@/components/ui/toast";
+import { useDocumentPolling } from "@/hooks/useDocumentPolling";
 
 export default function DocumentsPage() {
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
@@ -18,6 +19,28 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reprocessingIds, setReprocessingIds] = useState<Set<string>>(new Set());
+
+  // Automatic Document Ingestion Polling Hook (2.5s base interval, visibility-aware, bounded backoff)
+  const { isPolling, pendingCount, triggerPoll } = useDocumentPolling(
+    workspaceId,
+    documents,
+    setDocuments,
+    {
+      baseIntervalMs: 2500,
+      onDocumentIndexed: (doc) => {
+        notify.success("Document Ingestion Complete", {
+          description: `"${doc.filename}" is now fully indexed and ready for factual queries.`,
+        });
+      },
+      onDocumentFailed: (doc) => {
+        notify.error("Document Indexing Failed", {
+          description:
+            doc.error_message || `"${doc.filename}" could not be parsed or embedded.`,
+        });
+      },
+    }
+  );
 
   const loadDocuments = useCallback(async (isManualRefresh = false) => {
     if (!workspaceId) {
@@ -56,6 +79,46 @@ export default function DocumentsPage() {
 
   const handleUploadSuccess = (newDoc: Document) => {
     setDocuments((prev) => [newDoc, ...prev.filter((d) => d.id !== newDoc.id)]);
+    // Trigger polling immediately to track background indexing progress
+    triggerPoll();
+  };
+
+  const handleReprocess = async (docId: string) => {
+    const doc = documents.find((d) => d.id === docId);
+    const docTitle = doc?.filename || "Document";
+    const toastId = `reprocess-${docId}`;
+
+    setReprocessingIds((prev) => new Set(prev).add(docId));
+    notify.loading(`Reprocessing "${docTitle}"...`, {
+      id: toastId,
+      description: "Requesting server-side re-extraction and pgvector chunking...",
+    });
+
+    try {
+      const updatedDoc = await apiFetch<Document>(
+        `/api/v1/workspaces/${workspaceId}/documents/${docId}/reprocess`,
+        { method: "POST" }
+      );
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === docId ? { ...d, ...updatedDoc, status: "processing", error_message: null } : d
+        )
+      );
+      notify.info("Indexing In Progress", {
+        id: toastId,
+        description: `"${docTitle}" is being parsed and re-embedded into pgvector.`,
+      });
+      triggerPoll();
+    } catch (err) {
+      console.error("Reprocess error:", err);
+      notify.error("Reprocess Failed", err, { id: toastId });
+    } finally {
+      setReprocessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
   };
 
   const handleDelete = async (docId: string) => {
@@ -114,20 +177,35 @@ export default function DocumentsPage() {
             Upload and index reference documents. Files are stored in private Firebase Storage and embedded into Neon pgvector.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => loadDocuments(true)}
-          disabled={loading}
-          className="text-xs self-start sm:self-auto"
-        >
-          {loading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300" />
+        <div className="flex items-center gap-3">
+          {/* Live Auto-Polling Status Badge */}
+          {isPolling && pendingCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-purple-500/35 bg-purple-950/60 text-xs text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)] animate-fade-in">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+              </span>
+              <span className="font-mono text-[11px] font-medium">
+                Auto-syncing {pendingCount} document{pendingCount === 1 ? "" : "s"}...
+              </span>
+            </div>
           )}
-          Refresh
-        </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadDocuments(true)}
+            disabled={loading}
+            className="text-xs self-start sm:self-auto"
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-purple-400" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5 text-purple-300" />
+            )}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Upload Zone */}
@@ -173,6 +251,8 @@ export default function DocumentsPage() {
             documents={documents}
             onViewSource={(doc) => setSelectedDoc(doc)}
             onDeleteDocument={handleDelete}
+            onReprocessDocument={handleReprocess}
+            reprocessingIds={reprocessingIds}
           />
         )}
       </div>
