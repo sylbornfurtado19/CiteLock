@@ -3,7 +3,8 @@
 import React from "react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useWorkspace } from "@/lib/workspace";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+import { Skeleton, SkeletonAvatar, SkeletonText } from "@/components/ui/skeleton";
 
 export default function ChatPage() {
   const { currentWorkspace, isLoading } = useWorkspace();
@@ -11,9 +12,43 @@ export default function ChatPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] text-[#8D829F] text-sm">
-        <Loader2 className="h-5 w-5 animate-spin mr-2 text-purple-400" />
-        Resolving workspace context...
+      <div className="space-y-6 max-w-5xl mx-auto animate-fade-in" aria-busy="true">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-purple-900/20 pb-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-64" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+          <Skeleton className="h-8 w-32 rounded-xl" />
+        </div>
+
+        {/* Chat Panel Skeleton Frame */}
+        <div className="flex flex-col h-[calc(100vh-13rem)] min-h-[520px] max-h-[820px] rounded-2xl border border-purple-900/30 bg-[#100A1C]/75 backdrop-blur-xl relative overflow-hidden">
+          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-purple-400/8 to-transparent animate-shimmer pointer-events-none" />
+          
+          <div className="flex-1 p-6 space-y-6">
+            {/* Assistant message skeleton */}
+            <div className="flex gap-3">
+              <SkeletonAvatar size="md" />
+              <div className="rounded-2xl p-4 bg-[#0B0616]/90 border border-purple-900/35 max-w-md w-full space-y-2">
+                <SkeletonText lines={2} />
+              </div>
+            </div>
+
+            {/* User message skeleton */}
+            <div className="flex justify-end">
+              <div className="rounded-2xl p-4 bg-purple-950/40 border border-purple-500/20 max-w-sm w-full space-y-1.5">
+                <Skeleton className="h-3.5 w-3/4 ml-auto" />
+              </div>
+            </div>
+          </div>
+
+          {/* Input Form Skeleton */}
+          <div className="p-4 border-t border-purple-900/30 bg-[#0B0616]/80 flex gap-2">
+            <Skeleton className="h-10 flex-1 rounded-xl" />
+            <Skeleton className="h-10 w-24 rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }

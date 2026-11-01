@@ -8,6 +8,7 @@ import { Document } from "@/types";
 import { apiFetch } from "@/lib/api";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeletonTableRow } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/lib/workspace";
 
 export default function DocumentsPage() {
@@ -107,13 +108,35 @@ export default function DocumentsPage() {
 
       {/* Document Registry Table */}
       <div className="space-y-4">
-        <h3 className="text-base font-semibold text-[#F5F0FF]">
-          Indexed Documents ({documents.length})
-        </h3>
-        {loading ? (
-          <div className="flex items-center justify-center p-12 text-[#8D829F] text-sm">
-            <Loader2 className="h-6 w-6 animate-spin mr-2 text-purple-400" />
-            Loading documents...
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-[#F5F0FF]">
+            Indexed Documents ({loading ? "..." : documents.length})
+          </h3>
+          {loading && (
+            <span className="text-xs font-mono text-purple-300/80">
+              Synchronizing vector embeddings...
+            </span>
+          )}
+        </div>
+
+        {loading && documents.length === 0 ? (
+          <div className="overflow-x-auto rounded-2xl border border-purple-900/30 bg-[#100A1C]/75 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md">
+            <table className="w-full text-left text-sm text-[#F5F0FF]">
+              <thead className="border-b border-purple-900/40 bg-[#0B0616]/90 text-xs font-mono uppercase tracking-wider text-[#B0A4C3]">
+                <tr>
+                  <th className="px-4 sm:px-6 py-3.5">Document Name</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5">Size</th>
+                  <th className="px-4 py-3.5">Format</th>
+                  <th className="px-4 sm:px-6 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-purple-900/20">
+                {[1, 2, 3, 4].map((i) => (
+                  <SkeletonTableRow key={i} variant="document" />
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <DocumentTable

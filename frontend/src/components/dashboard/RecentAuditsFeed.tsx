@@ -14,9 +14,9 @@ import {
   MessageSquare,
   FileSearch,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeletonTableRow } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api";
 import { AuditListItem } from "@/types";
 
@@ -134,7 +134,7 @@ export function RecentAuditsFeed({
 
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs px-2.5 py-1 bg-purple-950/60 border border-purple-500/25 rounded-lg text-purple-300">
-            {hasAudits ? `${audits.length} Recent Streams` : "0 Audits"}
+            {loading ? "Syncing..." : hasAudits ? `${audits.length} Recent Streams` : "0 Audits"}
           </span>
           <Link href="/chat">
             <Button
@@ -151,9 +151,23 @@ export function RecentAuditsFeed({
 
       {/* Feed Content */}
       {loading && audits.length === 0 ? (
-        <div className="flex items-center justify-center p-8 text-purple-300 gap-2 text-xs font-mono">
-          <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-          <span>Loading audit history...</span>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-purple-900/25 text-[10px] font-mono uppercase tracking-wider text-[#8D829F]">
+                <th className="pb-2.5 font-medium">Query Prompt Snippet</th>
+                <th className="pb-2.5 font-medium px-3">Verdict Status</th>
+                <th className="pb-2.5 font-medium px-3">Correction Cycles</th>
+                <th className="pb-2.5 font-medium px-3">Timestamp</th>
+                <th className="pb-2.5 font-medium text-right">Inspection</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-900/15">
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonTableRow key={i} variant="audit" />
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : hasAudits ? (
         <div className="space-y-2.5">
@@ -198,22 +212,26 @@ export function RecentAuditsFeed({
                       {/* Verdict Status Badge */}
                       <td className="py-3 px-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-medium border ${badgeStyles} shadow-sm`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono border ${badgeStyles}`}
                         >
-                          <BadgeIcon className="h-3 w-3 shrink-0" />
-                          <span>{label}</span>
+                          <BadgeIcon className="h-3 w-3" />
+                          {label}
                         </span>
                       </td>
 
-                      {/* Correction Cycles */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-purple-200">
-                          <span>{audit.correction_rounds} cycle{audit.correction_rounds === 1 ? "" : "s"}</span>
-                        </div>
+                      {/* Correction Cycles Count */}
+                      <td className="py-3 px-3 font-mono text-[#B0A4C3] whitespace-nowrap">
+                        {audit.correction_rounds > 0 ? (
+                          <span className="text-purple-300 font-semibold">
+                            {audit.correction_rounds} {audit.correction_rounds === 1 ? "round" : "rounds"}
+                          </span>
+                        ) : (
+                          <span className="text-[#8D829F]">0 (first-pass)</span>
+                        )}
                       </td>
 
-                      {/* Timestamp */}
-                      <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-[#8D829F]">
+                      {/* ISO Timestamp */}
+                      <td className="py-3 px-3 font-mono text-[#8D829F] whitespace-nowrap">
                         {formatTimeAgo(audit.created_at)}
                       </td>
 

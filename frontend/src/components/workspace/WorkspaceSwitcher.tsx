@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useWorkspace } from "@/lib/workspace";
 import { CreateWorkspaceModal } from "./CreateWorkspaceModal";
+import { Skeleton, SkeletonAvatar } from "@/components/ui/skeleton";
 import {
   ChevronsUpDown,
   Check,
@@ -83,9 +84,7 @@ export function WorkspaceSwitcher({ compact = false, className = "" }: Workspace
         >
           <div className="flex items-center gap-2.5 min-w-0 pr-1">
             {isLoading ? (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-950/70 border border-purple-500/30">
-                <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-              </div>
+              <SkeletonAvatar size="md" />
             ) : currentWorkspace ? (
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-700 to-indigo-900 border border-purple-400/40 font-mono text-xs font-bold text-white shadow-[0_0_10px_rgba(147,51,234,0.3)]">
                 {getWorkspaceInitials(currentWorkspace.name)}
@@ -98,16 +97,21 @@ export function WorkspaceSwitcher({ compact = false, className = "" }: Workspace
 
             {!compact && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-[#F5F0FF] truncate leading-tight group-hover:text-white">
-                  {isLoading
-                    ? "Loading workspaces..."
-                    : currentWorkspace
-                    ? currentWorkspace.name
-                    : "No workspace selected"}
-                </span>
-                <span className="text-[10px] text-[#8D829F] font-mono leading-none mt-0.5 truncate">
-                  {currentWorkspace?.description || "Audited Tenant"}
-                </span>
+                {isLoading ? (
+                  <div className="space-y-1.5 py-0.5">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2 w-16" />
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-xs font-semibold text-[#F5F0FF] truncate leading-tight group-hover:text-white">
+                      {currentWorkspace ? currentWorkspace.name : "No workspace selected"}
+                    </span>
+                    <span className="text-[10px] text-[#8D829F] font-mono leading-none mt-0.5 truncate">
+                      {currentWorkspace?.description || "Audited Tenant"}
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>

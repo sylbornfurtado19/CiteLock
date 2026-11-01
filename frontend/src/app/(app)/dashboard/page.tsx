@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
+import { SkeletonKpi, SkeletonChart, SkeletonCard } from "@/components/ui/skeleton";
 import { AnalyticsSummary } from "@/types";
 import { useWorkspace } from "@/lib/workspace";
 
@@ -317,64 +318,84 @@ export default function DashboardPage() {
           <div className="pointer-events-none absolute -inset-x-2 -top-2 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_14px_rgba(192,132,252,0.9)] animate-radar-sweep z-30" />
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Overall Grounding Rate"
-            value={loading ? "--" : groundingRate}
-            icon={ShieldCheck}
-            description="Claims verified by citation proof"
-            className="animate-fade-in-up"
-            isHero={true}
-          />
-          <StatCard
-            title="Indexed Documents"
-            value={loading ? "--" : (analytics?.total_documents ?? 0).toString()}
-            icon={Database}
-            description="Private storage objects"
-            className="animate-fade-in-up animation-delay-75"
-            sparklineType="documents"
-          />
-          <StatCard
-            title="Total Claims Evaluated"
-            value={loading ? "--" : totalClaims.toString()}
-            icon={FileCheck}
-            description="Atomic propositions extracted"
-            className="animate-fade-in-up animation-delay-150"
-            sparklineType="claims"
-          />
-          <StatCard
-            title="Hallucination Interceptions"
-            value={loading ? "--" : hallucinationCount.toString()}
-            icon={AlertCircle}
-            description="Contradicted or unsupported claims"
-            className="animate-fade-in-up animation-delay-200"
-            sparklineType="hallucinations"
-          />
-        </div>
+        {loading && !analytics ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SkeletonKpi isHero={true} />
+            <SkeletonKpi />
+            <SkeletonKpi />
+            <SkeletonKpi />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Overall Grounding Rate"
+              value={groundingRate}
+              icon={ShieldCheck}
+              description="Claims verified by citation proof"
+              className="animate-fade-in-up"
+              isHero={true}
+            />
+            <StatCard
+              title="Indexed Documents"
+              value={(analytics?.total_documents ?? 0).toString()}
+              icon={Database}
+              description="Private storage objects"
+              className="animate-fade-in-up animation-delay-75"
+              sparklineType="documents"
+            />
+            <StatCard
+              title="Total Claims Evaluated"
+              value={totalClaims.toString()}
+              icon={FileCheck}
+              description="Atomic propositions extracted"
+              className="animate-fade-in-up animation-delay-150"
+              sparklineType="claims"
+            />
+            <StatCard
+              title="Hallucination Interceptions"
+              value={hallucinationCount.toString()}
+              icon={AlertCircle}
+              description="Contradicted or unsupported claims"
+              className="animate-fade-in-up animation-delay-200"
+              sparklineType="hallucinations"
+            />
+          </div>
+        )}
       </div>
 
       {/* Charts & Interactive Operational Pipeline Node Flow (DAG) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up animation-delay-300">
-        <div className="lg:col-span-2">
-          <VerdictDistributionChart
-            distribution={
-              analytics?.verdict_distribution || {
-                supported: 0,
-                partially_supported: 0,
-                contradicted: 0,
-                unsupported: 0,
-                insufficient_evidence: 0,
+      {loading && !analytics ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up">
+          <div className="lg:col-span-2">
+            <SkeletonChart />
+          </div>
+          <div className="lg:col-span-1">
+            <SkeletonCard className="h-full min-h-[320px]" />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up animation-delay-300">
+          <div className="lg:col-span-2">
+            <VerdictDistributionChart
+              distribution={
+                analytics?.verdict_distribution || {
+                  supported: 0,
+                  partially_supported: 0,
+                  contradicted: 0,
+                  unsupported: 0,
+                  insufficient_evidence: 0,
+                }
               }
-            }
+            />
+          </div>
+
+          {/* Operational Pipeline Status: Visual DAG Node Flow */}
+          <PipelineNodeFlow
+            latencyMs={analytics?.avg_latency_ms || 0}
+            className="lg:col-span-1"
           />
         </div>
-
-        {/* Operational Pipeline Status: Visual DAG Node Flow */}
-        <PipelineNodeFlow
-          latencyMs={analytics?.avg_latency_ms || 0}
-          className="lg:col-span-1"
-        />
-      </div>
+      )}
 
       {/* Module A: Recent Verification Audits Live Feed */}
       <div className="animate-fade-in-up animation-delay-400">

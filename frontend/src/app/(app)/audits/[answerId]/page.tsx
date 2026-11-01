@@ -10,6 +10,7 @@ import { CorrectionTimeline } from "@/components/claims/CorrectionTimeline";
 import { AnswerAudit } from "@/types";
 import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
+import { Skeleton, SkeletonText, SkeletonCard, SkeletonClaimCard } from "@/components/ui/skeleton";
 
 export default function AuditDetailPage() {
   const params = useParams();
@@ -77,9 +78,48 @@ export default function AuditDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 space-y-4">
-        <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
-        <p className="text-sm text-[#8D829F] font-mono">Loading audit trail & provenance links...</p>
+      <div className="space-y-8 max-w-5xl mx-auto animate-fade-in" aria-busy="true" aria-label="Loading audit details">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-16 rounded-lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-3 w-80" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-36 rounded-lg" />
+        </div>
+
+        {/* Query Banner Skeleton */}
+        <div className="rounded-2xl border border-purple-900/30 bg-[#100A1C]/80 p-5 space-y-2">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+
+        {/* Timeline Skeleton */}
+        <SkeletonCard className="p-6">
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <SkeletonText lines={3} />
+          </div>
+        </SkeletonCard>
+
+        {/* Claim Cards Skeleton Deck */}
+        <div className="space-y-4 pt-4 border-t border-purple-900/30">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-52" />
+            <Skeleton className="h-5 w-32 rounded-full" />
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <SkeletonClaimCard key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
