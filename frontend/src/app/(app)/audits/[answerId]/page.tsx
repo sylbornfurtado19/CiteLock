@@ -211,13 +211,15 @@ export default function AuditDetailPage() {
         <p className="text-sm font-medium text-[#F5F0FF] leading-relaxed">{auditData.prompt}</p>
       </div>
 
-      {/* Self-Correction Lifecycle Timeline */}
+      {/* Self-Correction Lifecycle Timeline with Word-Level Diff */}
       <CorrectionTimeline
         draftText={auditData.draft_text}
         finalText={auditData.final_text}
         rounds={auditData.correction_rounds}
         isAbstained={auditData.is_abstained}
         correctionHistory={auditData.correction_history}
+        createdAt={auditData.created_at}
+        claims={auditData.claims}
       />
 
       {/* Decomposed Atomic Claims */}
