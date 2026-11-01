@@ -16,6 +16,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { WorkspaceProvider, useWorkspace } from "@/lib/workspace";
+import { WorkspaceSwitcher } from "@/components/workspace";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -25,10 +27,11 @@ const NAV_ITEMS = [
   { label: "Settings", href: "/settings", icon: SlidersHorizontal },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Redirect to login if user is not authenticated
@@ -96,17 +99,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-[#05020D] text-[#F5F0FF]">
       {/* Mobile Top Navigation Bar */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-purple-900/30 bg-[#0B0616]/90 backdrop-blur-md sticky top-0 z-40">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-purple-900/30 bg-[#0B0616]/90 backdrop-blur-md sticky top-0 z-40 gap-3">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-950 border border-purple-500/30">
             <Shield className="h-4 w-4 text-purple-300" />
           </div>
           <span className="text-base font-bold tracking-tight text-white">CiteLock</span>
         </Link>
+
+        {/* Compact Switcher for Mobile Header */}
+        <div className="flex-1 max-w-[200px]">
+          <WorkspaceSwitcher compact />
+        </div>
+
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle Navigation Drawer"
-          className="p-2 rounded-lg border border-purple-500/25 bg-[#100A1C] text-purple-300 hover:text-white"
+          className="p-2 rounded-lg border border-purple-500/25 bg-[#100A1C] text-purple-300 hover:text-white shrink-0"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -133,23 +142,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
+          {/* Dynamic Workspace Selector */}
+          <div className="p-3 border-b border-purple-900/25 bg-[#0B0616]/40">
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8D829F] mb-1.5 px-1">
+              Active Tenant
+            </label>
+            <WorkspaceSwitcher />
+          </div>
+
           {/* Navigation Links */}
           {renderNavLinks()}
         </div>
 
         {/* User Profile & Logout */}
         <div className="p-4 border-t border-purple-900/25 bg-[#0B0616]/60 flex items-center justify-between">
-          <div className="flex flex-col truncate pr-2">
+          <div className="flex flex-col truncate pr-2 min-w-0">
             <span className="text-xs font-medium text-[#F5F0FF] truncate">
               {user?.email || "Auditor"}
             </span>
-            <span className="text-[10px] text-[#8D829F] font-mono">Default Workspace</span>
+            <span className="text-[10px] text-purple-400 font-mono truncate">
+              {currentWorkspace ? currentWorkspace.name : "No Workspace Selected"}
+            </span>
           </div>
           <button
             onClick={() => logout()}
             title="Log Out"
             aria-label="Log Out"
-            className="rounded-lg p-2 text-purple-300 hover:bg-purple-950/60 hover:text-white transition-colors"
+            className="rounded-lg p-2 text-purple-300 hover:bg-purple-950/60 hover:text-white transition-colors shrink-0"
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -182,21 +201,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
+              {/* Workspace Switcher in Drawer */}
+              <div className="p-3 border-b border-purple-900/25">
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8D829F] mb-1 px-1">
+                  Active Tenant
+                </label>
+                <WorkspaceSwitcher />
+              </div>
+
               {renderNavLinks()}
             </div>
 
             <div className="p-4 border-t border-purple-900/30 bg-[#070311] flex items-center justify-between">
-              <div className="flex flex-col truncate pr-2">
+              <div className="flex flex-col truncate pr-2 min-w-0">
                 <span className="text-xs font-medium text-white truncate">
                   {user?.email || "Auditor"}
                 </span>
-                <span className="text-[10px] text-[#8D829F] font-mono">Default Workspace</span>
+                <span className="text-[10px] text-purple-400 font-mono truncate">
+                  {currentWorkspace ? currentWorkspace.name : "No Workspace Selected"}
+                </span>
               </div>
               <button
                 onClick={() => logout()}
                 title="Log Out"
                 aria-label="Log Out"
-                className="rounded-lg p-2 text-purple-300 hover:bg-purple-950/80 hover:text-white transition-all duration-150 active:scale-90"
+                className="rounded-lg p-2 text-purple-300 hover:bg-purple-950/80 hover:text-white transition-all duration-150 active:scale-90 shrink-0"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -208,5 +237,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#05020D] text-[#F5F0FF]">{children}</main>
     </div>
+  );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <WorkspaceProvider>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </WorkspaceProvider>
   );
 }

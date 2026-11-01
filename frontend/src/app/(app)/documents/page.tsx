@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { UploadDropzone } from "@/components/documents/UploadDropzone";
 import { DocumentTable } from "@/components/documents/DocumentTable";
 import { SourceViewer } from "@/components/documents/SourceViewer";
@@ -8,14 +8,21 @@ import { Document } from "@/types";
 import { apiFetch } from "@/lib/api";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useWorkspace } from "@/lib/workspace";
 
 export default function DocumentsPage() {
-  const workspaceId = "default-workspace-001";
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
+  const workspaceId = currentWorkspace?.id || "";
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
+    if (!workspaceId) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const docs = await apiFetch<Document[]>(
@@ -27,11 +34,16 @@ export default function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
 
   useEffect(() => {
-    loadDocuments();
-  }, [workspaceId]);
+    if (workspaceId) {
+      loadDocuments();
+    } else if (!workspaceLoading) {
+      setDocuments([]);
+      setLoading(false);
+    }
+  }, [workspaceId, workspaceLoading, loadDocuments]);
 
   const handleUploadSuccess = (newDoc: Document) => {
     setDocuments((prev) => [newDoc, ...prev.filter((d) => d.id !== newDoc.id)]);
@@ -47,6 +59,20 @@ export default function DocumentsPage() {
       console.error("Failed to delete document:", err);
     }
   };
+
+  if (!workspaceLoading && !currentWorkspace) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-950/60 border border-purple-500/30 text-purple-300 shadow-[0_0_24px_rgba(139,92,246,0.25)]">
+          <RefreshCw className="h-8 w-8 text-purple-400" />
+        </div>
+        <h2 className="text-xl font-bold text-[#F5F0FF]">No Active Workspace Found</h2>
+        <p className="text-sm text-[#B0A4C3] max-w-md">
+          Please select or create an isolated workspace using the tenant selector in the sidebar to view and manage documents.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">

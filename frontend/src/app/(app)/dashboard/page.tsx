@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VerdictDistributionChart } from "@/components/dashboard/VerdictDistributionChart";
@@ -23,9 +23,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { AnalyticsSummary } from "@/types";
+import { useWorkspace } from "@/lib/workspace";
 
 export default function DashboardPage() {
-  const workspaceId = "default-workspace-001";
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
+  const workspaceId = currentWorkspace?.id;
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,11 @@ export default function DashboardPage() {
   const [exportingReport, setExportingReport] = useState(false);
   const [exportedSuccess, setExportedSuccess] = useState(false);
 
-  const fetchAnalytics = async (rangeOverride?: string) => {
+  const fetchAnalytics = useCallback(async (rangeOverride?: string) => {
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -51,11 +57,16 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId, selectedRange]);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [workspaceId, selectedRange]);
+    if (workspaceId) {
+      fetchAnalytics();
+    } else if (!workspaceLoading) {
+      setLoading(false);
+      setAnalytics(null);
+    }
+  }, [workspaceId, workspaceLoading, fetchAnalytics]);
 
   const totalClaims = analytics?.verdict_distribution
     ? Object.values(analytics.verdict_distribution).reduce((a, b) => a + b, 0)

@@ -62,7 +62,7 @@ function getStatusDisplay(audit: AuditListItem) {
 }
 
 export function RecentAuditsFeed({
-  workspaceId = "default-workspace-001",
+  workspaceId = "",
   totalQueries = 0,
   className = "",
 }: {
@@ -76,6 +76,13 @@ export function RecentAuditsFeed({
   useEffect(() => {
     let isMounted = true;
     async function loadAudits() {
+      if (!workspaceId) {
+        if (isMounted) {
+          setAudits([]);
+          setLoading(false);
+        }
+        return;
+      }
       try {
         setLoading(true);
         const data = await apiFetch<AuditListItem[]>(

@@ -9,11 +9,13 @@ import { ClaimCard } from "@/components/claims/ClaimCard";
 import { CorrectionTimeline } from "@/components/claims/CorrectionTimeline";
 import { AnswerAudit } from "@/types";
 import { apiFetch } from "@/lib/api";
+import { useWorkspace } from "@/lib/workspace";
 
 export default function AuditDetailPage() {
   const params = useParams();
   const answerId = (params?.answerId as string) || "";
-  const workspaceId = "default-workspace-001";
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
+  const workspaceId = currentWorkspace?.id || "";
 
   const [auditData, setAuditData] = useState<AnswerAudit | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,10 @@ export default function AuditDetailPage() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    if (!answerId) return;
+    if (!answerId || !workspaceId) {
+      if (!workspaceLoading) setLoading(false);
+      return;
+    }
 
     const fetchAudit = async () => {
       try {
@@ -40,10 +45,13 @@ export default function AuditDetailPage() {
     };
 
     fetchAudit();
-  }, [answerId, workspaceId]);
+  }, [answerId, workspaceId, workspaceLoading]);
 
   const handleExport = async () => {
-    if (!answerId) return;
+    if (!answerId || !workspaceId) {
+      if (!workspaceLoading) setLoading(false);
+      return;
+    }
     try {
       setExporting(true);
       const data = await apiFetch<Record<string, unknown>>(
