@@ -20,7 +20,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       outline:
         "border border-purple-500/25 bg-transparent hover:bg-purple-950/30 text-purple-200 hover:text-white hover:border-purple-400/50 hover:-translate-y-0.5",
       danger:
-        "bg-red-950/70 text-red-200 hover:bg-red-900/80 border border-red-800/60 shadow-sm hover:-translate-y-0.5",
+        "bg-rose-950/80 text-rose-200 hover:bg-rose-900/90 border border-rose-500/40 shadow-sm hover:-translate-y-0.5",
       ghost: "hover:bg-purple-950/40 text-purple-300 hover:text-white transition-colors duration-150",
     };
 

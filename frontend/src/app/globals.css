@@ -3,10 +3,49 @@
 @tailwind utilities;
 
 :root {
+  /* Canvas & Surface Geometry */
   --background: #05020D;
+  --canvas-subtle: #080412;
   --foreground: #F5F0FF;
   --surface: #100A1C;
-  --surface-border: rgba(196, 167, 255, 0.14);
+  --surface-elevated: #171025;
+  --surface-hover: #1E1435;
+  --surface-border: rgba(168, 85, 247, 0.22);
+  --surface-border-subtle: rgba(168, 85, 247, 0.12);
+  --surface-border-accent: rgba(168, 85, 247, 0.40);
+
+  /* Semantic Typography Tokens (WCAG AA & AAA compliant) */
+  --text-primary: #F5F0FF;      /* 18.4:1 contrast on canvas (AAA) */
+  --text-secondary: #C4B7DB;    /* 10.9:1 contrast on canvas (AAA) */
+  --text-muted: #9E93B3;        /* 7.1:1 contrast on canvas (AAA) */
+  --text-dim: #7B708F;          /* 4.5:1 contrast on canvas (AA) */
+
+  /* Brand Violet Palette */
+  --brand-primary: #A855F7;
+  --brand-light: #C084FC;
+  --brand-dark: #7C3AED;
+  --brand-glow: rgba(168, 85, 247, 0.35);
+
+  /* Semantic Status Tokens (All > 7.0:1 on dark surfaces) */
+  --status-success: #34D399;
+  --status-success-bg: rgba(6, 78, 59, 0.45);
+  --status-success-border: rgba(16, 185, 129, 0.40);
+
+  --status-warning: #FBBF24;
+  --status-warning-bg: rgba(69, 26, 3, 0.45);
+  --status-warning-border: rgba(245, 158, 11, 0.40);
+
+  --status-error: #FB7185;
+  --status-error-bg: rgba(76, 5, 25, 0.45);
+  --status-error-border: rgba(244, 63, 94, 0.40);
+
+  --status-info: #C084FC;
+  --status-info-bg: rgba(46, 16, 101, 0.45);
+  --status-info-border: rgba(168, 85, 247, 0.40);
+
+  /* Focus Indicator Token (WCAG 2.1 Criterion 2.4.11 compliant: 7.78:1) */
+  --focus-ring: #C084FC;
+  --focus-offset: #05020D;
 }
 
 body {
@@ -14,6 +53,12 @@ body {
   background: var(--background);
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* Global Accessible Keyboard Focus Ring */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* Atmospheric Ambient Lighting */
@@ -68,7 +113,7 @@ body {
   background: rgba(16, 10, 28, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(196, 167, 255, 0.14);
+  border: 1px solid var(--surface-border);
   box-shadow: 
     inset 0 1px 1px 0 rgba(233, 213, 255, 0.12),
     0 8px 32px 0 rgba(0, 0, 0, 0.45);
@@ -78,8 +123,74 @@ body {
   background: rgba(19, 13, 34, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(196, 167, 255, 0.16);
+  border: 1px solid var(--surface-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Standardized Typography Utility Hierarchy */
+.heading-1 {
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+@media (min-width: 640px) {
+  .heading-1 {
+    font-size: 2rem;
+    line-height: 2.375rem;
+  }
+}
+
+.heading-2 {
+  font-size: 1.25rem;
+  line-height: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+@media (min-width: 640px) {
+  .heading-2 {
+    font-size: 1.5rem;
+    line-height: 1.875rem;
+  }
+}
+
+.heading-3 {
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+.heading-4 {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-mono), monospace;
+}
+
+.body-base {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--text-secondary);
+}
+
+.body-small {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--text-muted);
+}
+
+.caption-mono {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  color: var(--text-muted);
 }
 
 /* Reusable Motion Helpers & Micro-Interactions */

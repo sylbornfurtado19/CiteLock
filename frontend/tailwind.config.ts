@@ -8,19 +8,31 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
         canvas: {
-          DEFAULT: "#05020D",
-          subtle: "#080412",
+          DEFAULT: "var(--background)",
+          subtle: "var(--canvas-subtle)",
         },
         surface: {
-          DEFAULT: "#100A1C",
-          elevated: "#171025",
-          hover: "#1E1435",
-          border: "rgba(196, 167, 255, 0.14)",
+          DEFAULT: "var(--surface)",
+          elevated: "var(--surface-elevated)",
+          hover: "var(--surface-hover)",
+          border: "var(--surface-border)",
+          "border-subtle": "var(--surface-border-subtle)",
+          "border-accent": "var(--surface-border-accent)",
           highlight: "rgba(216, 180, 254, 0.18)",
+        },
+        content: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          muted: "var(--text-muted)",
+          dim: "var(--text-dim)",
         },
         brand: {
           50: "#faf5ff",
@@ -34,6 +46,28 @@ const config: Config = {
           800: "#6d28d9",
           900: "#581c87",
           950: "#2e1065",
+        },
+        status: {
+          success: {
+            DEFAULT: "var(--status-success)",
+            bg: "var(--status-success-bg)",
+            border: "var(--status-success-border)",
+          },
+          warning: {
+            DEFAULT: "var(--status-warning)",
+            bg: "var(--status-warning-bg)",
+            border: "var(--status-warning-border)",
+          },
+          error: {
+            DEFAULT: "var(--status-error)",
+            bg: "var(--status-error-bg)",
+            border: "var(--status-error-border)",
+          },
+          info: {
+            DEFAULT: "var(--status-info)",
+            bg: "var(--status-info-bg)",
+            border: "var(--status-info-border)",
+          },
         },
         audit: {
           supported: "#10b981",

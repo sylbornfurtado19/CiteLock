@@ -31,7 +31,7 @@ export function Dialog({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1.5 text-purple-300 hover:bg-purple-950/60 hover:text-white transition-all duration-150 active:scale-90"
+            className="rounded-lg p-1.5 text-purple-300 hover:bg-purple-950/60 hover:text-white transition-all duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
           >
             <X className="h-5 w-5" />
           </button>
