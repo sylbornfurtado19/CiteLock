@@ -25,6 +25,7 @@ import { apiFetch } from "@/lib/api";
 import { SkeletonKpi, SkeletonChart, SkeletonCard } from "@/components/ui/skeleton";
 import { AnalyticsSummary } from "@/types";
 import { useWorkspace } from "@/lib/workspace";
+import { notify } from "@/components/ui/toast";
 
 export default function DashboardPage() {
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
@@ -40,7 +41,7 @@ export default function DashboardPage() {
   const [exportingReport, setExportingReport] = useState(false);
   const [exportedSuccess, setExportedSuccess] = useState(false);
 
-  const fetchAnalytics = useCallback(async (rangeOverride?: string) => {
+  const fetchAnalytics = useCallback(async (rangeOverride?: string, isManual = false) => {
     if (!workspaceId) {
       setLoading(false);
       return;
@@ -52,9 +53,18 @@ export default function DashboardPage() {
         `/api/v1/workspaces/${workspaceId}/analytics${(rangeOverride || selectedRange).toLowerCase() !== "all" ? `?range=${(rangeOverride || selectedRange).toLowerCase()}` : ""}`
       );
       setAnalytics(data);
+      if (isManual || rangeOverride) {
+        notify.info("Telemetry Metrics Synchronized", {
+          description: `Updated metrics across active ${(rangeOverride || selectedRange).toUpperCase()} window.`,
+          duration: 3000,
+        });
+      }
     } catch (err: unknown) {
       console.error("Failed to load analytics:", err);
       setError("Unable to load real-time analytics. Verify backend connection.");
+      if (isManual || rangeOverride) {
+        notify.error("Telemetry Sync Failed", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,8 +96,14 @@ export default function DashboardPage() {
       : "100.0%";
 
   const handleExportComplianceReport = () => {
+    const toastId = `compliance-export-${Date.now()}`;
     try {
       setExportingReport(true);
+      notify.loading("Compiling Compliance Audit Report...", {
+        id: toastId,
+        description: `Assembling telemetry for range ${selectedRange.toUpperCase()}...`,
+      });
+
       const reportPayload = {
         title: "CiteLock Hallucination & Citation Verification Compliance Audit",
         workspace_id: workspaceId,
@@ -125,8 +141,20 @@ export default function DashboardPage() {
 
       setExportedSuccess(true);
       setTimeout(() => setExportedSuccess(false), 3000);
+
+      notify.success("Compliance Audit Report Exported", {
+        id: toastId,
+        description: `Exported JSON compliance report for ${selectedRange.toUpperCase()} window.`,
+      });
     } catch (err) {
       console.error("Export failed:", err);
+      notify.error("Report Export Failed", err, {
+        id: toastId,
+        action: {
+          label: "Retry",
+          onClick: () => handleExportComplianceReport(),
+        },
+      });
     } finally {
       setExportingReport(false);
     }
@@ -168,35 +196,32 @@ export default function DashboardPage() {
                 </h1>
 
                 {/* Cybernetic Telemetry Pill with 3-Peak Oscilloscope Wave */}
-                <div className="inline-flex items-center gap-2 rounded-full bg-purple-950/80 border border-purple-500/35 px-3 py-1 shadow-[0_0_12px_rgba(139,92,246,0.25)] backdrop-blur-md">
-                  {/* Miniature 3-peak SVG oscilloscope wave */}
+                <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/35 bg-purple-950/60 px-2.5 py-0.5 text-xs text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.2)]">
                   <svg
-                    className={`h-3 w-6 overflow-visible transition-colors duration-200 ${
-                      loading ? "text-purple-300 animate-oscilloscope-fast" : "text-emerald-400 animate-oscilloscope"
+                    className={`h-3 w-7 ${
+                      loading
+                        ? "text-purple-300 animate-oscilloscope-fast"
+                        : "text-purple-400/80 animate-oscilloscope"
                     }`}
-                    viewBox="0 0 24 10"
+                    viewBox="0 0 28 12"
                     fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
                     aria-hidden="true"
                   >
                     <path
-                      d="M1 5h3.5l2-3.5 3 7 3-6.5 2 4.5 2-1.5h6"
+                      d="M1 6 Q 4 1, 7 6 T 13 6 T 19 6 T 25 6 L 27 6"
                       stroke="currentColor"
-                      strokeWidth="1.6"
+                      strokeWidth="1.75"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                   </svg>
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      loading ? "bg-purple-400 animate-ping" : "bg-emerald-400 animate-pulse"
-                    } shadow-[0_0_8px_currentColor]`}
-                  />
-                  <span className="text-[10px] font-mono font-semibold tracking-wider text-purple-200">
-                    {loading ? "AUDIT SWEEP..." : "LIVE AUDITING"}
+                  <span className="font-mono text-[11px] font-medium tracking-tight">
+                    {loading ? "Sweeping Audit..." : "Grounding Active"}
                   </span>
                 </div>
               </div>
-              <p className="text-xs sm:text-sm text-[#B0A4C3] mt-1">
+              <p className="text-xs text-[#B0A4C3] mt-1">
                 Real-time hallucination tracking, claim distribution, and citation fidelity metrics.
               </p>
             </div>
@@ -228,7 +253,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchAnalytics()}
+              onClick={() => fetchAnalytics(undefined, true)}
               disabled={loading}
               className="text-xs self-start sm:self-auto gap-2 border-purple-500/30 bg-[#140D24] hover:bg-[#1A1130] hover:border-purple-400/50 hover:text-white transition-all duration-150 active:scale-95 shadow-sm group"
             >
@@ -298,25 +323,26 @@ export default function DashboardPage() {
               {exportingReport
                 ? "Generating Report..."
                 : exportedSuccess
-                ? "Report Downloaded!"
-                : "Export Compliance Report"}
+                ? "Report Exported!"
+                : "Export Compliance Audit"}
             </span>
           </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-4 text-sm text-rose-300 flex items-center gap-2.5 backdrop-blur-md animate-fade-in">
-          <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-          <span>{error}</span>
+      {/* KPI Stat Cards Deck */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-[#F5F0FF]">Verification Telemetry</h3>
+            <span className="font-mono text-xs px-2 py-0.5 rounded-full border border-purple-500/30 bg-purple-950/60 text-purple-300">
+              Window: {selectedRange}
+            </span>
+          </div>
+          {error && (
+            <span className="text-xs text-rose-400 font-medium">Telemetry service offline</span>
+          )}
         </div>
-      )}
-
-      {/* KPI Cards Deck with Hero Grounding Arc and Micro-Trend Sparklines */}
-      <div className="relative">
-        {loading && (
-          <div className="pointer-events-none absolute -inset-x-2 -top-2 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_14px_rgba(192,132,252,0.9)] animate-radar-sweep z-30" />
-        )}
 
         {loading && !analytics ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

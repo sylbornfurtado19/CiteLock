@@ -5,7 +5,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/lib/workspace";
 import { Workspace } from "@/types";
-import { Plus, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { Plus, Loader2, AlertCircle } from "lucide-react";
+import { notify } from "@/components/ui/toast";
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -51,16 +52,28 @@ export function CreateWorkspaceModal({
     }
     if (trimmedName.length < 2) {
       setValidationError("Workspace name must be at least 2 characters.");
+      return;
     }
     if (trimmedName.length > 255) {
       setValidationError("Workspace name must not exceed 255 characters.");
       return;
     }
 
+    const toastId = `create-ws-${Date.now()}`;
     try {
       setLoading(true);
+      notify.loading(`Provisioning "${trimmedName}"...`, {
+        id: toastId,
+        description: "Configuring isolated tenant environment and vector namespace...",
+      });
+
       const newWs = await createWorkspace(trimmedName, description.trim() || undefined);
       resetForm();
+      notify.success("Workspace Created", {
+        id: toastId,
+        description: `"${newWs.name}" is now active and ready for document ingestion.`,
+      });
+
       if (onSuccess) {
         onSuccess(newWs);
       }
@@ -72,6 +85,9 @@ export function CreateWorkspaceModal({
           ? err.message
           : "Failed to create workspace. Please check your network connection and try again.";
       setApiError(message);
+      notify.error("Workspace Creation Failed", err, {
+        id: toastId,
+      });
     } finally {
       setLoading(false);
     }
@@ -174,4 +190,3 @@ export function CreateWorkspaceModal({
     </Dialog>
   );
 }
-

@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { UploadCloud, FileText, CheckCircle2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { Document } from "@/types";
+import { notify } from "@/components/ui/toast";
 
 export function UploadDropzone({
   workspaceId,
@@ -23,6 +23,12 @@ export function UploadDropzone({
     setError(null);
     setSuccess(null);
 
+    const toastId = `doc-upload-${Date.now()}`;
+    notify.loading(`Uploading "${file.name}"...`, {
+      id: toastId,
+      description: "Streaming to vault storage & generating pgvector embeddings.",
+    });
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -36,12 +42,27 @@ export function UploadDropzone({
         }
       );
 
-      setSuccess(`Uploaded "${file.name}" successfully.`);
+      const successMsg = `Uploaded "${file.name}" successfully.`;
+      setSuccess(successMsg);
+      notify.success("Document Ingestion Complete", {
+        id: toastId,
+        description: `"${file.name}" indexed into pgvector and ready for provenance auditing.`,
+      });
+
       if (onUploadSuccess) onUploadSuccess(uploadedDoc);
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Failed to upload document to backend API.";
       setError(msg);
+      notify.error("Document Upload Failed", err, {
+        id: toastId,
+        action: {
+          label: "Retry",
+          onClick: () => {
+            uploadFile(file);
+          },
+        },
+      });
     } finally {
       setIsUploading(false);
     }

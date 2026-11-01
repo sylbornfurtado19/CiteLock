@@ -11,6 +11,7 @@ import { AnswerAudit } from "@/types";
 import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { Skeleton, SkeletonText, SkeletonCard, SkeletonClaimCard } from "@/components/ui/skeleton";
+import { notify } from "@/components/ui/toast";
 
 export default function AuditDetailPage() {
   const params = useParams();
@@ -39,7 +40,9 @@ export default function AuditDetailPage() {
         setAuditData(data);
       } catch (err: unknown) {
         console.error("Failed to load audit:", err);
-        setError("Audit record not found or inaccessible for this answer.");
+        const fallbackMsg = "Audit record not found or inaccessible for this answer.";
+        setError(fallbackMsg);
+        notify.error("Audit Inaccessible", err);
       } finally {
         setLoading(false);
       }
@@ -53,8 +56,14 @@ export default function AuditDetailPage() {
       if (!workspaceLoading) setLoading(false);
       return;
     }
+    const toastId = `export-audit-${answerId}`;
     try {
       setExporting(true);
+      notify.loading("Compiling Audit Export...", {
+        id: toastId,
+        description: "Packaging claims, verdicts, and provenance links.",
+      });
+
       const data = await apiFetch<Record<string, unknown>>(
         `/api/v1/workspaces/${workspaceId}/audits/${answerId}/export`
       );
@@ -69,8 +78,22 @@ export default function AuditDetailPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      notify.success("Audit Export Downloaded", {
+        id: toastId,
+        description: `Exported audit report for answer #${answerId.slice(0, 8)}.`,
+      });
     } catch (err) {
       console.error("Export failed:", err);
+      notify.error("Audit Export Failed", err, {
+        id: toastId,
+        action: {
+          label: "Retry",
+          onClick: () => {
+            handleExport();
+          },
+        },
+      });
     } finally {
       setExporting(false);
     }

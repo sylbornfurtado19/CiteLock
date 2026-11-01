@@ -10,6 +10,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SkeletonTableRow } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/lib/workspace";
+import { notify } from "@/components/ui/toast";
 
 export default function DocumentsPage() {
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
@@ -18,7 +19,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadDocuments = useCallback(async () => {
+  const loadDocuments = useCallback(async (isManualRefresh = false) => {
     if (!workspaceId) {
       setDocuments([]);
       setLoading(false);
@@ -30,8 +31,15 @@ export default function DocumentsPage() {
         `/api/v1/workspaces/${workspaceId}/documents`
       );
       setDocuments(docs);
+      if (isManualRefresh) {
+        notify.info("Document Vault Synchronized", {
+          description: `${docs.length} indexed document${docs.length === 1 ? "" : "s"} found in workspace vault.`,
+          duration: 3000,
+        });
+      }
     } catch (err) {
       console.error("Failed to load documents:", err);
+      notify.error("Failed to Load Documents", err);
     } finally {
       setLoading(false);
     }
@@ -51,13 +59,35 @@ export default function DocumentsPage() {
   };
 
   const handleDelete = async (docId: string) => {
+    const targetDoc = documents.find((d) => d.id === docId);
+    const docTitle = targetDoc?.filename || "Document";
+    const toastId = `delete-doc-${docId}`;
+
+    notify.loading(`Deleting "${docTitle}"...`, {
+      id: toastId,
+      description: "Removing chunks from pgvector and deleting storage blob...",
+    });
+
     try {
       await apiFetch(`/api/v1/workspaces/${workspaceId}/documents/${docId}`, {
         method: "DELETE",
       });
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      notify.success("Document Deleted", {
+        id: toastId,
+        description: `"${docTitle}" and its associated embeddings were permanently deleted.`,
+      });
     } catch (err) {
       console.error("Failed to delete document:", err);
+      notify.error("Failed to Delete Document", err, {
+        id: toastId,
+        action: {
+          label: "Retry",
+          onClick: () => {
+            handleDelete(docId);
+          },
+        },
+      });
     }
   };
 
@@ -87,7 +117,7 @@ export default function DocumentsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={loadDocuments}
+          onClick={() => loadDocuments(true)}
           disabled={loading}
           className="text-xs self-start sm:self-auto"
         >

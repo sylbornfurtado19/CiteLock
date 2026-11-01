@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Shield, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { notify, sanitizeErrorMessage } from "@/components/ui/toast";
 
 import { auth } from "@/lib/firebase/client";
 import {
@@ -28,19 +29,33 @@ export default function LoginPage() {
     setErrorMsg(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      notify.success("Authentication Successful", {
+        description: "Redirecting to your auditor dashboard...",
+      });
       router.push("/dashboard");
     } catch (err: any) {
-      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential" || err.code === "auth/invalid-login-credentials") {
+      if (
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/invalid-login-credentials"
+      ) {
         try {
           // Auto-create account if new
           await createUserWithEmailAndPassword(auth, email, password);
+          notify.success("Account Provisioned", {
+            description: "New workspace account registered. Welcome to CiteLock.",
+          });
           router.push("/dashboard");
           return;
         } catch (createErr: any) {
-          setErrorMsg(createErr.message || "Failed to sign in or create account.");
+          const cleanMsg = sanitizeErrorMessage(createErr);
+          setErrorMsg(cleanMsg);
+          notify.error("Sign In Failed", createErr);
         }
       } else {
-        setErrorMsg(err.message || "Authentication failed.");
+        const cleanMsg = sanitizeErrorMessage(err);
+        setErrorMsg(cleanMsg);
+        notify.error("Authentication Failed", err);
       }
     } finally {
       setLoading(false);
@@ -53,9 +68,14 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      notify.success("Google Sign-In Verified", {
+        description: "Redirecting to your auditor dashboard...",
+      });
       router.push("/dashboard");
     } catch (err: any) {
-      setErrorMsg(err.message || "Google authentication failed.");
+      const cleanMsg = sanitizeErrorMessage(err);
+      setErrorMsg(cleanMsg);
+      notify.error("Google Sign-In Failed", err);
     } finally {
       setLoading(false);
     }

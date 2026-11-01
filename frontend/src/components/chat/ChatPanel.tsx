@@ -8,6 +8,7 @@ import { PipelineProgressStepper } from "./PipelineProgressStepper";
 import { Answer } from "@/types";
 import { PipelineEvent, PipelineStage } from "@/types/pipeline";
 import { streamPipelineQuery } from "@/lib/stream";
+import { notify } from "@/components/ui/toast";
 
 interface Message {
   id: string;
@@ -47,16 +48,7 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
     scrollToBottom();
   }, [messages, activeStage, loading]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
-
-    const userPrompt = input.trim();
-    const userMsg: Message = { id: Date.now().toString(), sender: "user", text: userPrompt };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setLoading(true);
-
+  const executeQuery = async (userPrompt: string) => {
     // Reset pipeline streaming state
     setActiveStage("retrieval");
     setPipelineEvents({} as Record<PipelineStage, PipelineEvent>);
@@ -107,6 +99,16 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           : "An error occurred executing the audited RAG pipeline. Check backend connection.";
       setStreamErrorMessage(errorMessage);
 
+      notify.error("Auditor Pipeline Interrupted", err, {
+        description: errorMessage,
+        action: {
+          label: "Retry",
+          onClick: () => {
+            executeQuery(userPrompt);
+          },
+        },
+      });
+
       setMessages((prev) => [
         ...prev,
         {
@@ -119,6 +121,19 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
       setLoading(false);
       abortControllerRef.current = null;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
+
+    const userPrompt = input.trim();
+    const userMsg: Message = { id: Date.now().toString(), sender: "user", text: userPrompt };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    await executeQuery(userPrompt);
   };
 
   return (
@@ -138,37 +153,36 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
               </div>
             )}
             <div className="max-w-2xl">
-              {msg.text && (
+              {msg.answer ? (
+                <AnswerWithCitations answer={msg.answer} workspaceId={workspaceId} />
+              ) : (
                 <div
-                  className={`rounded-2xl p-4 text-sm leading-relaxed transition-all duration-200 ${
+                  className={`rounded-2xl px-4 py-3 text-sm transition-all duration-200 ${
                     msg.sender === "user"
-                      ? "bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-[0_4px_18px_rgba(139,92,246,0.3)]"
-                      : "bg-[#0B0616]/90 text-[#F5F0FF] border border-purple-900/35 rounded-tl-sm shadow-sm"
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_4px_16px_rgba(147,51,234,0.3)]"
+                      : "bg-[#160E29]/90 border border-purple-900/40 text-[#E2D9F3] shadow-[0_4px_16px_rgba(0,0,0,0.3)] leading-relaxed"
                   }`}
                 >
                   {msg.text}
                 </div>
               )}
-              {msg.answer && (
-                <AnswerWithCitations workspaceId={workspaceId} answer={msg.answer} />
-              )}
             </div>
           </div>
         ))}
 
-        {/* Live Real-Time Pipeline Stepper */}
+        {/* Real-Time Pipeline Progress Stepper (Visible while pipeline executes) */}
         {loading && (
-          <div className="flex gap-3 animate-fade-in duration-300">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0">
+          <div className="flex gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-300 shadow-[0_0_12px_rgba(139,92,246,0.25)] shrink-0 animate-pulse">
               <Bot className="h-4 w-4" />
             </div>
-            <div className="w-full max-w-2xl">
+            <div className="max-w-2xl w-full">
               <PipelineProgressStepper
-                events={pipelineEvents}
                 activeStage={activeStage}
+                events={pipelineEvents}
                 isComplete={isStreamComplete}
                 isFailed={isStreamFailed}
-                errorMessage={streamErrorMessage}
+                errorMessage={streamErrorMessage || undefined}
               />
             </div>
           </div>
@@ -177,26 +191,27 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-3 sm:p-4 border-t border-purple-900/30 bg-[#0B0616]/80">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about your indexed documents..."
-            className="flex-1 rounded-xl border border-purple-900/40 bg-[#070311] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder:text-[#8D829F] focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-200"
-            disabled={loading}
-          />
-          <Button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="gap-1.5 active:scale-95 transition-transform duration-150"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Query</span>
-          </Button>
-        </div>
+      {/* Input area */}
+      <form
+        onSubmit={handleSubmit}
+        className="p-4 border-t border-purple-900/30 bg-[#0B0517]/80 rounded-b-2xl flex gap-2.5 backdrop-blur-md"
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask a factual question against your indexed documents..."
+          disabled={loading}
+          className="flex-1 rounded-xl border border-purple-900/40 bg-[#06020E] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder-[#8D829F] focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/30 transition-all duration-200"
+        />
+        <Button
+          type="submit"
+          disabled={loading || !input.trim()}
+          size="sm"
+          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl shadow-[0_0_16px_rgba(147,51,234,0.35)] transition-all duration-200 active:scale-95"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
       </form>
     </div>
   );
