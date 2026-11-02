@@ -40,13 +40,17 @@ class Settings(BaseSettings):
     chunk_size: int = 500
     chunk_overlap: int = 50
     max_file_size_mb: int = 25
-    cors_origins: str = "http://localhost:3000,https://citelock.vercel.app"
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:3001,http://127.0.0.1:3001,"
+        "https://citelock.vercel.app"
+    )
     port: int = 8000
-    environment: str = "production"
-    allow_dev_auth: bool = False
+    environment: str = "development"
+    allow_dev_auth: bool = True
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

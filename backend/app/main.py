@@ -14,6 +14,15 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager initializing resources and cleaning up on shutdown."""
+    # Ensure database schema is initialized
+    try:
+        from app.db.session import engine, Base
+        import app.db.models
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        import logging
+        logging.getLogger("uvicorn.error").warning("Schema initialization notice: %s", e)
+
     yield
     # Cleanly close all persistent HTTP connection pools
     close_http_clients()
@@ -32,7 +41,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

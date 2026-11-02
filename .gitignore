@@ -10,6 +10,9 @@ Thumbs.db
 *.cert
 service-account*.json
 firebase-adminsdk*.json
+*.db
+*.sqlite
+*.sqlite3
 
 # Python
 __pycache__/

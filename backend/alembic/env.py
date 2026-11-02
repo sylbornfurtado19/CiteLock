@@ -21,7 +21,11 @@ target_metadata = Base.metadata
 def get_url():
     """Retrieve database URL from application settings."""
     settings = get_settings()
-    return settings.database_url
+    url = settings.database_url
+    # In offline SQL generation mode, default to postgresql dialect if local dev SQLite is active
+    if url.startswith("sqlite") and context.is_offline_mode():
+        return "postgresql+psycopg://citelock:citelock_dev_password@localhost:5432/citelock"
+    return url
 
 
 def run_migrations_offline() -> None:

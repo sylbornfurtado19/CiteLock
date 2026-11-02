@@ -78,6 +78,16 @@ export function sanitizeErrorMessage(
     return "Too many attempts. Please wait a few moments before trying again.";
   }
 
+  // Handle browser fetch connection failures
+  if (
+    rawMessage === "Load failed" ||
+    rawMessage === "Failed to fetch" ||
+    rawMessage.includes("Load failed") ||
+    rawMessage.includes("Failed to fetch")
+  ) {
+    return "Cannot connect to CiteLock backend at http://localhost:8000. Please ensure the backend server is running.";
+  }
+
   // If prefixed with API Error 400/403/404/422, extract clean detail
   const apiErrorMatch = rawMessage.match(/^API Error \d+:\s*(.*)$/);
   if (apiErrorMatch && apiErrorMatch[1]) {

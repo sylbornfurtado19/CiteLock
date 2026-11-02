@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/lib/workspace";
 import { Workspace } from "@/types";
 import { Plus, Loader2, AlertCircle } from "lucide-react";
-import { notify } from "@/components/ui/toast";
+import { notify, sanitizeErrorMessage } from "@/components/ui/toast";
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -80,12 +80,12 @@ export function CreateWorkspaceModal({
       onClose();
     } catch (err: unknown) {
       console.error("Failed to create workspace:", err);
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to create workspace. Please check your network connection and try again.";
+      const message = sanitizeErrorMessage(
+        err,
+        "Failed to create workspace. Please check your network connection and try again."
+      );
       setApiError(message);
-      notify.error("Workspace Creation Failed", err, {
+      notify.error("Workspace Creation Failed", message, {
         id: toastId,
       });
     } finally {
