@@ -313,8 +313,8 @@ def test_gemini_adapter_headers_and_payload(monkeypatch):
         embedding_provider="gemini",
         embedding_api_key="gemini-embed-secret",
         gemini_llm_model="gemini-1.5-flash",
-        gemini_embedding_model="text-embedding-004",
-        embedding_dim=1536,
+        gemini_embedding_model="gemini-embedding-001",
+        embedding_dim=768,
     )
     monkeypatch.setattr("app.config.get_settings", lambda: test_settings)
     monkeypatch.setattr("app.providers.gemini_adapter.get_settings", lambda: test_settings)
@@ -334,5 +334,5 @@ def test_gemini_adapter_headers_and_payload(monkeypatch):
     req2 = recorded_requests[1]
     assert "?key=" not in req2["url"]
     assert req2["headers"].get("x-goog-api-key") == "gemini-embed-secret"
-    assert req2["json"]["requests"][0]["outputDimensionality"] == 1536
+    assert req2["json"]["requests"][0]["outputDimensionality"] == 768
 

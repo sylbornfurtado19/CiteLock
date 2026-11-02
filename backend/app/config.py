@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Gemini model IDs must be checked against currently available models.
     gemini_llm_model: str = "gemini-1.5-flash"
-    gemini_embedding_model: str = "text-embedding-004"
+    gemini_embedding_model: str = "gemini-embedding-001"
 
     max_correction_retries: int = 2
     max_verification_workers: int = 5

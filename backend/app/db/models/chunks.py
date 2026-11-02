@@ -20,7 +20,7 @@ class Chunk(Base):
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True)
     chunk_index = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(768), nullable=True)  # Gemini text-embedding-004 max dimension
+    embedding = Column(Vector(768), nullable=True)  # Gemini gemini-embedding-001 dimension
     token_count = Column(Integer, nullable=True)
     metadata_ = Column("metadata", JSONB, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
