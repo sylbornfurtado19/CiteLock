@@ -1,12 +1,23 @@
 """FastAPI main application entrypoint with middleware, health check, and route registration."""
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.api.routes import api_router
+from app.providers.http_client import close_http_clients
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager initializing resources and cleaning up on shutdown."""
+    yield
+    # Cleanly close all persistent HTTP connection pools
+    close_http_clients()
+
 
 app = FastAPI(
     title="CiteLock API",
@@ -14,6 +25,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure Cross-Origin Resource Sharing (CORS)

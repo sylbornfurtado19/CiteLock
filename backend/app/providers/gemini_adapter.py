@@ -1,4 +1,4 @@
-"""Google Gemini API provider adapter for remote embeddings and structured verification."""
+"""Google Gemini API provider adapter with persistent HTTP connection pooling for embeddings and verification."""
 
 from typing import Any, Dict, List, Optional
 import json
@@ -10,24 +10,29 @@ from app.providers.base import (
     EmbeddingProvider,
     ProviderError,
 )
+from app.providers.http_client import get_http_client
 
 
-# Note: Gemini model IDs must be checked against currently available models.
 class GeminiProvider(LLMProvider, EmbeddingProvider):
-    """Google Gemini API integration for generative inference and text embeddings."""
+    """Google Gemini API integration reusing persistent connection pools for generative inference and embeddings."""
 
-    def __init__(self):
+    def __init__(self, client: Optional[httpx.Client] = None):
         settings = get_settings()
         self.llm_api_key = settings.llm_api_key
         self.embedding_api_key = settings.embedding_api_key
-        # Gemini model IDs must be checked against currently available models.
         self.llm_model = settings.gemini_llm_model
         self.embedding_model = settings.gemini_embedding_model
         self.embedding_dim = settings.embedding_dim
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self._client = client or get_http_client("gemini")
+
+    def close(self) -> None:
+        """Close connection pool if this adapter instance manages its own client."""
+        if self._client and not self._client.is_closed:
+            self._client.close()
 
     def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
-        """Call Gemini generateContent endpoint."""
+        """Call Gemini generateContent endpoint via pooled HTTP client."""
         if not self.llm_api_key or "placeholder" in self.llm_api_key.lower():
             raise ProviderError("Gemini LLM API key is missing or invalid.")
 
@@ -38,26 +43,25 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
         try:
-            with httpx.Client(timeout=45.0) as client:
-                res = client.post(
-                    f"{self.base_url}/models/{self.llm_model}:generateContent",
-                    headers={"x-goog-api-key": self.llm_api_key},
-                    json={
-                        "contents": contents,
-                        "generationConfig": {"temperature": temperature},
-                    },
-                )
-                if res.status_code != 200:
-                    raise ProviderError(f"Gemini generateContent returned HTTP {res.status_code}: {res.text[:200]}")
-                data = res.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            res = self._client.post(
+                f"{self.base_url}/models/{self.llm_model}:generateContent",
+                headers={"x-goog-api-key": self.llm_api_key},
+                json={
+                    "contents": contents,
+                    "generationConfig": {"temperature": temperature},
+                },
+            )
+            if res.status_code != 200:
+                raise ProviderError(f"Gemini generateContent returned HTTP {res.status_code}: {res.text[:200]}")
+            data = res.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
         except ProviderError:
             raise
         except Exception as e:
             raise ProviderError(f"Failed to communicate with Gemini API: {str(e)[:200]}")
 
     def structured_judge(self, claim: str, evidence_passages: List[str]) -> Dict[str, Any]:
-        """Perform structured claim verification using Gemini structured JSON mode."""
+        """Perform structured claim verification using Gemini structured JSON mode via pooled HTTP client."""
         if not self.llm_api_key or "placeholder" in self.llm_api_key.lower():
             raise ProviderError("Gemini LLM API key is missing or invalid.")
 
@@ -71,22 +75,21 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
         user_prompt = f"{system_instruction}\n\nClaim to evaluate: \"{claim}\"\n\nReference Evidence:\n{passages_text}"
 
         try:
-            with httpx.Client(timeout=45.0) as client:
-                res = client.post(
-                    f"{self.base_url}/models/{self.llm_model}:generateContent",
-                    headers={"x-goog-api-key": self.llm_api_key},
-                    json={
-                        "contents": [{"parts": [{"text": user_prompt}]}],
-                        "generationConfig": {
-                            "response_mime_type": "application/json",
-                            "temperature": 0.0,
-                        },
+            res = self._client.post(
+                f"{self.base_url}/models/{self.llm_model}:generateContent",
+                headers={"x-goog-api-key": self.llm_api_key},
+                json={
+                    "contents": [{"parts": [{"text": user_prompt}]}],
+                    "generationConfig": {
+                        "response_mime_type": "application/json",
+                        "temperature": 0.0,
                     },
-                )
-                if res.status_code != 200:
-                    raise ProviderError(f"Gemini judge returned HTTP {res.status_code}: {res.text[:200]}")
-                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                return json.loads(text)
+                },
+            )
+            if res.status_code != 200:
+                raise ProviderError(f"Gemini judge returned HTTP {res.status_code}: {res.text[:200]}")
+            text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(text)
         except ProviderError:
             raise
         except Exception as e:
@@ -98,7 +101,7 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
         return batch_res[0]
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate batch embeddings using batchEmbedContents."""
+        """Generate batch embeddings using batchEmbedContents via persistent HTTP connection."""
         if not texts:
             return []
         if not self.embedding_api_key or "placeholder" in self.embedding_api_key.lower():
@@ -106,24 +109,23 @@ class GeminiProvider(LLMProvider, EmbeddingProvider):
 
         model_name = self.embedding_model if self.embedding_model.startswith("models/") else f"models/{self.embedding_model}"
         try:
-            with httpx.Client(timeout=45.0) as client:
-                requests = [
-                    {
-                        "model": model_name,
-                        "content": {"parts": [{"text": t}]},
-                        "outputDimensionality": self.embedding_dim,
-                    }
-                    for t in texts
-                ]
-                res = client.post(
-                    f"{self.base_url}/{model_name}:batchEmbedContents",
-                    headers={"x-goog-api-key": self.embedding_api_key},
-                    json={"requests": requests},
-                )
-                if res.status_code != 200:
-                    raise ProviderError(f"Gemini embedding returned HTTP {res.status_code}: {res.text[:200]}")
-                data = res.json()
-                return [e["values"] for e in data.get("embeddings", [])]
+            requests = [
+                {
+                    "model": model_name,
+                    "content": {"parts": [{"text": t}]},
+                    "outputDimensionality": self.embedding_dim,
+                }
+                for t in texts
+            ]
+            res = self._client.post(
+                f"{self.base_url}/{model_name}:batchEmbedContents",
+                headers={"x-goog-api-key": self.embedding_api_key},
+                json={"requests": requests},
+            )
+            if res.status_code != 200:
+                raise ProviderError(f"Gemini embedding returned HTTP {res.status_code}: {res.text[:200]}")
+            data = res.json()
+            return [e["values"] for e in data.get("embeddings", [])]
         except ProviderError:
             raise
         except Exception as e:

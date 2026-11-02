@@ -28,6 +28,12 @@ class Settings(BaseSettings):
 
     max_correction_retries: int = 2
     max_verification_workers: int = 5
+    http_connect_timeout: float = 5.0
+    http_read_timeout: float = 45.0
+    http_write_timeout: float = 10.0
+    http_max_keepalive_connections: int = 20
+    http_max_connections: int = 50
+    http_enable_http2: bool = True
     chunk_size: int = 500
     chunk_overlap: int = 50
     max_file_size_mb: int = 25
