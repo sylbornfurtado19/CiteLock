@@ -54,13 +54,6 @@ function WorkspaceProviderInner({ children }: { children: ReactNode }) {
   );
 
   const fetchWorkspaces = useCallback(async () => {
-    if (!user) {
-      setWorkspaces([]);
-      setCurrentWorkspace(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -99,7 +92,11 @@ function WorkspaceProviderInner({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       console.error("Failed to fetch workspaces:", err);
       if (err instanceof ApiError && err.status === 401) {
-        setError("Session expired. Please log in again.");
+        if (!user) {
+          setError(null);
+        } else {
+          setError("Session expired. Please log in again.");
+        }
       } else {
         setError("Unable to load workspaces. Please check connection.");
       }
