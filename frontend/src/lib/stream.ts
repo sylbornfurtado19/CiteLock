@@ -145,11 +145,12 @@ export async function streamPipelineQuery({
           } else if (eventType === "pipeline_error") {
             const errorPayload = parsed as PipelineErrorPayload;
             const err = new Error(errorPayload.message || "Pipeline execution failed.");
+            (err as Error & { fromPipeline?: boolean }).fromPipeline = true;
             onError?.(err);
             throw err;
           }
         } catch (parseErr) {
-          if (parseErr instanceof Error && parseErr.message.includes("Pipeline")) {
+          if (parseErr instanceof Error && (parseErr as Error & { fromPipeline?: boolean }).fromPipeline) {
             throw parseErr;
           }
           console.warn("Failed to parse SSE payload:", dataStr, parseErr);
