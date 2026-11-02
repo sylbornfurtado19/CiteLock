@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   ChevronLeft,
@@ -64,6 +65,11 @@ export function EvidenceDrawer({
   // Document preview state
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [openingFile, setOpeningFile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const currentCitation = citations[activeCitationIndex] || null;
@@ -220,11 +226,13 @@ export function EvidenceDrawer({
     activeChunk?.metadata?.source_filename ||
     "Source Document";
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990] transition-opacity animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -235,7 +243,7 @@ export function EvidenceDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Evidence Source Inspector"
-        className="fixed inset-y-0 right-0 z-50 w-full sm:max-w-xl md:max-w-2xl bg-[#0C061A]/95 border-l border-purple-500/25 shadow-[-16px_0_40px_rgba(0,0,0,0.8)] backdrop-blur-2xl flex flex-col transition-transform duration-300 ease-out animate-slide-in-right"
+        className="fixed inset-y-0 right-0 z-[9991] w-full sm:max-w-xl md:max-w-2xl bg-[#0C061A]/95 border-l border-purple-500/25 shadow-[-16px_0_40px_rgba(0,0,0,0.8)] backdrop-blur-2xl flex flex-col transition-transform duration-300 ease-out animate-slide-in-right"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-purple-900/35 bg-[#090314]/80 shrink-0">
@@ -458,7 +466,8 @@ export function EvidenceDrawer({
           onClose={() => setPreviewDocument(null)}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 }
 
