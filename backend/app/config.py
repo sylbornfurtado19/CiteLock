@@ -29,11 +29,11 @@ class Settings(BaseSettings):
     max_correction_retries: int = 2
     max_verification_workers: int = 5
     http_connect_timeout: float = 5.0
-    http_read_timeout: float = 120.0
+    http_read_timeout: float = 60.0
     http_write_timeout: float = 10.0
     http_max_keepalive_connections: int = 20
     http_max_connections: int = 50
-    http_enable_http2: bool = True
+    http_enable_http2: bool = False
     pipeline_cache_enabled: bool = True
     pipeline_cache_ttl_seconds: int = 600
     pipeline_cache_max_entries: int = 1000
