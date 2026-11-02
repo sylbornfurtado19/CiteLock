@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     http_max_keepalive_connections: int = 20
     http_max_connections: int = 50
     http_enable_http2: bool = True
+    pipeline_cache_enabled: bool = True
+    pipeline_cache_ttl_seconds: int = 600
+    pipeline_cache_max_entries: int = 1000
     chunk_size: int = 500
     chunk_overlap: int = 50
     max_file_size_mb: int = 25

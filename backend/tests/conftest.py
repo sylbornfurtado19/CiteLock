@@ -44,6 +44,17 @@ def init_test_db():
     Base.metadata.drop_all(bind=test_engine)
 
 
+@pytest.fixture(autouse=True)
+def reset_pipeline_cache():
+    """Ensure clean pipeline cache state between tests."""
+    from app.services.cache import pipeline_cache_service
+    pipeline_cache_service.clear()
+    pipeline_cache_service.reset_metrics()
+    yield
+    pipeline_cache_service.clear()
+    pipeline_cache_service.reset_metrics()
+
+
 @pytest.fixture
 def db():
     """Transactional database session fixture rolled back after each test."""

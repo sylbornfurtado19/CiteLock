@@ -221,6 +221,8 @@ def reprocess_document(
         doc.error_message = None
         db.commit()
         db.refresh(doc)
+        from app.services.cache import pipeline_cache_service
+        pipeline_cache_service.invalidate_workspace(workspace.id)
         background_tasks.add_task(process_document_background_task, doc.id, file_bytes)
 
     return doc
@@ -305,4 +307,11 @@ def delete_document(
     # 4. Delete document record (cascades to chunks)
     db.delete(doc)
     db.commit()
+
+    try:
+        from app.services.cache import pipeline_cache_service
+        pipeline_cache_service.invalidate_workspace(workspace.id)
+    except Exception as cache_err:
+        logger.warning("Failed to invalidate workspace cache after document deletion: %s", cache_err)
+
     return None

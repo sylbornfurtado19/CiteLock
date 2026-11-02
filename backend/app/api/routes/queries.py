@@ -4,7 +4,7 @@ import queue
 import threading
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.db.models.workspaces import Workspace
 from app.api.deps import get_workspace_scoped
 from app.schemas import QueryCreate, QueryResponse
 from app.pipeline.orchestrator import run_pipeline
+from app.services.cache import pipeline_cache_service
 from app.security.injection_guard import check_prompt_injection
 from app.services.verification.judge import VerificationProviderError
 from app.providers.base import ProviderError
@@ -103,6 +104,7 @@ def execute_query(
     payload: QueryCreate,
     stream: bool = QueryParam(default=False),
     request: Request = None,
+    response: Response = None,
     workspace: Workspace = Depends(get_workspace_scoped),
     db: Session = Depends(get_db),
 ):
@@ -170,6 +172,11 @@ def execute_query(
 
     query_obj = pipeline_result["query"]
     answer_obj = pipeline_result["answer"]
+    exec_meta = pipeline_result.get("execution_metadata", {})
+    is_cache_hit = bool(exec_meta.get("cache_hit", False))
+
+    if response is not None:
+        response.headers["X-Cache"] = "HIT" if is_cache_hit else "MISS"
 
     return QueryResponse(
         query_id=query_obj.id,
@@ -177,8 +184,16 @@ def execute_query(
         prompt=query_obj.prompt,
         answer=answer_obj,
         verification_status=pipeline_result.get("verification_status"),
-        execution_metadata=pipeline_result.get("execution_metadata", {}),
+        execution_metadata=exec_meta,
     )
+
+
+@router.get("/cache-metrics")
+def get_query_cache_metrics(
+    workspace: Workspace = Depends(get_workspace_scoped),
+):
+    """Retrieve telemetry metrics for pipeline query caching (hit rate, miss rate, evictions)."""
+    return pipeline_cache_service.get_metrics()
 
 
 @router.post("/stream")

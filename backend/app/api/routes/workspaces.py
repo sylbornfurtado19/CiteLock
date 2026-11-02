@@ -131,6 +131,12 @@ def update_workspace_settings(
     db.commit()
     db.refresh(workspace)
 
+    try:
+        from app.services.cache import pipeline_cache_service
+        pipeline_cache_service.invalidate_workspace(workspace.id)
+    except Exception as err:
+        logger.warning("Failed invalidating cache after workspace settings update: %s", err)
+
     return _build_settings_response(workspace)
 
 
@@ -144,6 +150,12 @@ def reset_workspace_settings(
     flag_modified(workspace, "settings_")
     db.commit()
     db.refresh(workspace)
+
+    try:
+        from app.services.cache import pipeline_cache_service
+        pipeline_cache_service.invalidate_workspace(workspace.id)
+    except Exception as err:
+        logger.warning("Failed invalidating cache after workspace settings reset: %s", err)
 
     return _build_settings_response(workspace)
 

@@ -147,6 +147,12 @@ def index_document(
         logger.info(f"Successfully indexed document {doc.id} ({doc.filename}) with {len(chunks_data)} chunks.")
 
         try:
+            from app.services.cache import pipeline_cache_service
+            pipeline_cache_service.invalidate_workspace(doc.workspace_id)
+        except Exception as cache_err:
+            logger.warning("Failed invalidating pipeline cache for workspace %s: %s", doc.workspace_id, cache_err)
+
+        try:
             from app.services.audit.recorder import record_audit_event
             record_audit_event(
                 db=db,
