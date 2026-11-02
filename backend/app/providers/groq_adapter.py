@@ -1,6 +1,7 @@
 """Groq API provider adapter (OpenAI-compatible chat completions; LLM only, no embeddings)."""
 
 import logging
+import time
 from typing import Any, Dict, List, Optional
 import httpx
 
@@ -14,7 +15,9 @@ logger = logging.getLogger(__name__)
 # Non-chat models served by Groq that must never be picked for text generation.
 _EXCLUDED_MODEL_MARKERS = ("whisper", "guard", "tts", "playai", "embed", "orpheus", "safeguard")
 # Substrings ranked by preference when auto-selecting a chat model.
-_PREFERRED_MODEL_MARKERS = ("versatile", "70b", "120b", "llama", "gpt-oss", "qwen")
+_MAX_RATE_LIMIT_RETRIES = 3
+_RATE_LIMIT_BACKOFF_SECONDS = 3.0
+_PREFERRED_MODEL_MARKERS =("versatile", "70b", "120b", "llama", "gpt-oss", "qwen")
 
 
 class GroqProvider(OpenAIProvider):
@@ -71,20 +74,30 @@ class GroqProvider(OpenAIProvider):
         text = str(error)
         return "model_not_found" in text or "decommissioned" in text or "does not exist" in text
 
-    def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
-        try:
-            return super().complete(prompt, system_prompt=system_prompt, temperature=temperature)
-        except ProviderError as e:
-            if not self._is_model_missing(e):
+    def _call_with_recovery(self, fn):
+        """Run a provider call, retrying on rate limits and re-selecting the model if it is missing."""
+        model_reselected = False
+        for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+            try:
+                return fn()
+            except ProviderError as e:
+                if self._is_model_missing(e) and not model_reselected:
+                    model_reselected = True
+                    self._pick_available_model()
+                    continue
+                if "HTTP 429" in str(e) and attempt < _MAX_RATE_LIMIT_RETRIES:
+                    delay = _RATE_LIMIT_BACKOFF_SECONDS * (attempt + 1)
+                    logger.warning("Groq rate limited; retrying in %.0fs", delay)
+                    time.sleep(delay)
+                    continue
                 raise
-            self._pick_available_model()
-            return super().complete(prompt, system_prompt=system_prompt, temperature=temperature)
+
+    def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
+        return self._call_with_recovery(
+            lambda: super(GroqProvider, self).complete(prompt, system_prompt=system_prompt, temperature=temperature)
+        )
 
     def structured_judge(self, claim: str, evidence_passages: List[str]) -> Dict[str, Any]:
-        try:
-            return super().structured_judge(claim, evidence_passages)
-        except ProviderError as e:
-            if not self._is_model_missing(e):
-                raise
-            self._pick_available_model()
-            return super().structured_judge(claim, evidence_passages)
+        return self._call_with_recovery(
+            lambda: super(GroqProvider, self).structured_judge(claim, evidence_passages)
+        )
