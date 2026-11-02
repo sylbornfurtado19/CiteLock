@@ -25,7 +25,8 @@ MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename to prevent path traversal and shell injection."""
-    clean = os.path.basename(filename or "unnamed_document")
+    normalized = (filename or "unnamed_document").replace("\\", "/")
+    clean = os.path.basename(normalized)
     clean = re.sub(r'[\x00-\x1f\\/:"*?<>|]', "_", clean)
     clean = clean.strip()
     return clean or "unnamed_document"
