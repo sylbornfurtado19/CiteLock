@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Text, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Text, Integer, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -22,6 +22,10 @@ class Claim(Base):
     confidence_score = Column(Float, nullable=True)
     rationale = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_claims_answer_verdict", "answer_id", "verdict"),
+    )
 
     answer = relationship("Answer", back_populates="claims")
     evidence_links = relationship("EvidenceLink", back_populates="claim", cascade="all, delete-orphan")

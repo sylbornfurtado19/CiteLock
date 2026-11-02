@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -21,6 +21,10 @@ class AuditEvent(Base):
     description = Column(Text, nullable=True)
     payload = Column(JSONB, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_audit_events_workspace_created", "workspace_id", created_at.desc()),
+    )
 
     workspace = relationship("Workspace", back_populates="audit_events")
 

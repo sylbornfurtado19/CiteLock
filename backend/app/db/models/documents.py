@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Text, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -26,6 +26,10 @@ class Document(Base):
     metadata_ = Column("metadata", JSONB, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_documents_workspace_status", "workspace_id", "status"),
+    )
 
     workspace = relationship("Workspace", back_populates="documents")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
