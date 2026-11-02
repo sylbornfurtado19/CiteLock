@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     groq_llm_model: str = "llama-3.3-70b-versatile"
 
     max_correction_retries: int = 2
-    max_verification_workers: int = 5
+    max_verification_workers: int = 1
     http_connect_timeout: float = 5.0
     http_read_timeout: float = 60.0
     http_write_timeout: float = 10.0

@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 # Non-chat models served by Groq that must never be picked for text generation.
 _EXCLUDED_MODEL_MARKERS = ("whisper", "guard", "tts", "playai", "embed", "orpheus", "safeguard")
 # Substrings ranked by preference when auto-selecting a chat model.
-_MAX_RATE_LIMIT_RETRIES = 3
-_RATE_LIMIT_BACKOFF_SECONDS = 3.0
+_MAX_RATE_LIMIT_RETRIES = 4
+_RATE_LIMIT_BACKOFF_SECONDS = 10.0
 _PREFERRED_MODEL_MARKERS =("versatile", "70b", "120b", "llama", "gpt-oss", "qwen")
 
 
