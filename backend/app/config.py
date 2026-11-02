@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     embedding_provider: str = "openai"
     embedding_api_key: str | None = None
-    embedding_dim: int = 1536
+    embedding_dim: int = 768
 
     openai_llm_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
