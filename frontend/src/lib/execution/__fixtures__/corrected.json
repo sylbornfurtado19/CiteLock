@@ -1,0 +1,777 @@
+{
+  "scenario": "corrected",
+  "events": [
+    {
+      "event": "node_start",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.898605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "prompt": "fixture corrected",
+        "top_k": 3,
+        "max_correction_rounds": 3,
+        "abstention_policy": "strict"
+      },
+      "timestamp": "2026-11-02T19:28:24.898605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.898605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "passages_count": 1,
+        "passages": [
+          {
+            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
+            "document": "titan.txt",
+            "chunk_index": null,
+            "relevance": null,
+            "snippet": "Titan uses mTLS."
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.898605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.899145Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "draft_answer": "Draft answer.",
+        "provider": "mock",
+        "model": null,
+        "passages_used": 1
+      },
+      "timestamp": "2026-11-02T19:28:24.899145Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.899678Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.899678Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.899678Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses SSH.",
+            "category": null,
+            "verdict": "contradicted",
+            "confidence": 0.9,
+            "rationale": "Judged contradicted.",
+            "evidence": []
+          }
+        ],
+        "metrics": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 1,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "verification_errors": 0
+      },
+      "timestamp": "2026-11-02T19:28:24.899678Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "verification_router",
+      "from_node": "claim_verification",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.900273Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "verification_router",
+      "from_node": "claim_verification",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 1 of 3.",
+        "failed_claims": 1,
+        "round": 0
+      },
+      "route": "correct",
+      "to_node": "self_correction",
+      "timestamp": "2026-11-02T19:28:24.900273Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "verification_router",
+      "route": "correct",
+      "to_node": "self_correction",
+      "reason": "1 claim(s) need correction; round 1 of 3.",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.900273Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "self_correction",
+      "from_node": "verification_router",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.900829Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "self_correction",
+      "from_node": "verification_router",
+      "round": 1,
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "max_rounds": 3,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses SSH."
+        ],
+        "previous_answer": "Draft answer.",
+        "revised_answer": "Titan uses TLS.",
+        "new_evidence_chunks": []
+      },
+      "timestamp": "2026-11-02T19:28:24.900829Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.900829Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 1,
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 1,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses TLS.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 2 of 3."
+      },
+      "route": "correct",
+      "to_node": "self_correction",
+      "timestamp": "2026-11-02T19:28:24.900829Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "re_verification",
+      "route": "correct",
+      "to_node": "self_correction",
+      "reason": "1 claim(s) need correction; round 2 of 3.",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.901370Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "self_correction",
+      "from_node": "re_verification",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.901370Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "self_correction",
+      "from_node": "re_verification",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "max_rounds": 3,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses TLS."
+        ],
+        "previous_answer": "Titan uses TLS.",
+        "revised_answer": "Titan uses mTLS.",
+        "new_evidence_chunks": []
+      },
+      "timestamp": "2026-11-02T19:28:24.901370Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.901898Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 0,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 0.0,
+          "grounding_rate": 1.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 1,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null,
+            "verdict": "supported",
+            "confidence": 0.9,
+            "rationale": "Judged supported.",
+            "evidence": []
+          }
+        ],
+        "route": "finalize",
+        "reason": "All claims are supported by the retrieved evidence."
+      },
+      "route": "finalize",
+      "to_node": "final_answer_generation",
+      "timestamp": "2026-11-02T19:28:24.901898Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "re_verification",
+      "route": "finalize",
+      "to_node": "final_answer_generation",
+      "reason": "All claims are supported by the retrieved evidence.",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.901898Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "final_answer_generation",
+      "from_node": "re_verification",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.901898Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "final_answer_generation",
+      "from_node": "re_verification",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "final_text": "Titan uses mTLS.",
+        "verification_status": "verified",
+        "is_abstained": false,
+        "correction_rounds": 2,
+        "execution_metadata": {
+          "latency_ms": 4,
+          "top_k": 3,
+          "retrieved_passages_count": 1,
+          "initial_claim_count": 1,
+          "final_claim_count": 1,
+          "llm_provider": "mock",
+          "correction_rounds": 2,
+          "hallucination_rate": 0.0,
+          "grounding_rate": 1.0,
+          "cache_hit": false,
+          "orchestrator": "langgraph",
+          "router_decision": "finalize",
+          "router_reason": "All claims are supported by the retrieved evidence."
+        }
+      },
+      "timestamp": "2026-11-02T19:28:24.901898Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "database_persistence",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.902440Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "database_persistence",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "duration_ms": 4,
+      "data": {
+        "persisted": true,
+        "answer_id": "685efe74-6556-4c34-9bcd-a2a83afe935a",
+        "query_id": "6b0e1670-1882-4c27-ae1b-e5f56a9600b9",
+        "claim_count": 1
+      },
+      "timestamp": "2026-11-02T19:28:24.907403Z",
+      "kind": "graph"
+    }
+  ],
+  "trace": [
+    {
+      "node": "query_input",
+      "status": "completed",
+      "from_node": null,
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.898605Z",
+      "ended_at": "2026-11-02T19:28:24.898605Z",
+      "duration_ms": 0,
+      "data": {
+        "prompt": "fixture corrected",
+        "top_k": 3,
+        "max_correction_rounds": 3,
+        "abstention_policy": "strict"
+      }
+    },
+    {
+      "node": "evidence_retrieval",
+      "status": "completed",
+      "from_node": "query_input",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.898605Z",
+      "ended_at": "2026-11-02T19:28:24.898605Z",
+      "duration_ms": 0,
+      "data": {
+        "passages_count": 1,
+        "passages": [
+          {
+            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
+            "document": "titan.txt",
+            "chunk_index": null,
+            "relevance": null,
+            "snippet": "Titan uses mTLS."
+          }
+        ]
+      }
+    },
+    {
+      "node": "answer_generation",
+      "status": "completed",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.899145Z",
+      "ended_at": "2026-11-02T19:28:24.899145Z",
+      "duration_ms": 0,
+      "data": {
+        "draft_answer": "Draft answer.",
+        "provider": "mock",
+        "model": null,
+        "passages_used": 1
+      }
+    },
+    {
+      "node": "claim_decomposition",
+      "status": "completed",
+      "from_node": "answer_generation",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.899678Z",
+      "ended_at": "2026-11-02T19:28:24.899678Z",
+      "duration_ms": 0,
+      "data": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null
+          }
+        ]
+      }
+    },
+    {
+      "node": "claim_verification",
+      "status": "completed",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.899678Z",
+      "ended_at": "2026-11-02T19:28:24.899678Z",
+      "duration_ms": 0,
+      "data": {
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses SSH.",
+            "category": null,
+            "verdict": "contradicted",
+            "confidence": 0.9,
+            "rationale": "Judged contradicted.",
+            "evidence": []
+          }
+        ],
+        "metrics": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 1,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "verification_errors": 0
+      }
+    },
+    {
+      "node": "verification_router",
+      "status": "completed",
+      "from_node": "claim_verification",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.900273Z",
+      "ended_at": "2026-11-02T19:28:24.900273Z",
+      "duration_ms": 0,
+      "data": {
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 1 of 3.",
+        "failed_claims": 1,
+        "round": 0
+      },
+      "route": "correct",
+      "to_node": "self_correction"
+    },
+    {
+      "node": "self_correction",
+      "status": "completed",
+      "from_node": "verification_router",
+      "round": 1,
+      "started_at": "2026-11-02T19:28:24.900829Z",
+      "ended_at": "2026-11-02T19:28:24.900829Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "max_rounds": 3,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses SSH."
+        ],
+        "previous_answer": "Draft answer.",
+        "revised_answer": "Titan uses TLS.",
+        "new_evidence_chunks": []
+      }
+    },
+    {
+      "node": "re_verification",
+      "status": "completed",
+      "from_node": "self_correction",
+      "round": 1,
+      "started_at": "2026-11-02T19:28:24.900829Z",
+      "ended_at": "2026-11-02T19:28:24.900829Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 1,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses TLS.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 2 of 3."
+      },
+      "route": "correct",
+      "to_node": "self_correction"
+    },
+    {
+      "node": "self_correction",
+      "status": "completed",
+      "from_node": "re_verification",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.901370Z",
+      "ended_at": "2026-11-02T19:28:24.901370Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "max_rounds": 3,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses TLS."
+        ],
+        "previous_answer": "Titan uses TLS.",
+        "revised_answer": "Titan uses mTLS.",
+        "new_evidence_chunks": []
+      }
+    },
+    {
+      "node": "re_verification",
+      "status": "completed",
+      "from_node": "self_correction",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.901898Z",
+      "ended_at": "2026-11-02T19:28:24.901898Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 0,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 0.0,
+          "grounding_rate": 1.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 1,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 0,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null,
+            "verdict": "supported",
+            "confidence": 0.9,
+            "rationale": "Judged supported.",
+            "evidence": []
+          }
+        ],
+        "route": "finalize",
+        "reason": "All claims are supported by the retrieved evidence."
+      },
+      "route": "finalize",
+      "to_node": "final_answer_generation"
+    },
+    {
+      "node": "final_answer_generation",
+      "status": "completed",
+      "from_node": "re_verification",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.901898Z",
+      "ended_at": "2026-11-02T19:28:24.901898Z",
+      "duration_ms": 0,
+      "data": {
+        "final_text": "Titan uses mTLS.",
+        "verification_status": "verified",
+        "is_abstained": false,
+        "correction_rounds": 2,
+        "execution_metadata": {
+          "latency_ms": 4,
+          "top_k": 3,
+          "retrieved_passages_count": 1,
+          "initial_claim_count": 1,
+          "final_claim_count": 1,
+          "llm_provider": "mock",
+          "correction_rounds": 2,
+          "hallucination_rate": 0.0,
+          "grounding_rate": 1.0,
+          "cache_hit": false,
+          "orchestrator": "langgraph",
+          "router_decision": "finalize",
+          "router_reason": "All claims are supported by the retrieved evidence."
+        }
+      }
+    },
+    {
+      "node": "database_persistence",
+      "status": "completed",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "data": {
+        "persisted": true
+      }
+    }
+  ]
+}

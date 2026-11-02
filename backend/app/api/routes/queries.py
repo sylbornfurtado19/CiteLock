@@ -32,7 +32,9 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
         thread_db = app.db.session.SessionLocal()
         try:
             def on_event(evt):
-                event_queue.put(("pipeline_event", evt))
+                # Real LangGraph node lifecycle events travel on their own SSE event type
+                event_type = "graph_event" if evt.get("kind") == "graph" else "pipeline_event"
+                event_queue.put((event_type, evt))
 
             pipeline_result = run_pipeline(
                 db=thread_db,

@@ -1,0 +1,160 @@
+{
+  "scenario": "failed",
+  "events": [
+    {
+      "event": "node_start",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.930491Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "prompt": "fixture failed",
+        "top_k": 3,
+        "max_correction_rounds": 2,
+        "abstention_policy": "strict"
+      },
+      "timestamp": "2026-11-02T19:28:24.930491Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.931180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "passages_count": 1,
+        "passages": [
+          {
+            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
+            "document": "titan.txt",
+            "chunk_index": null,
+            "relevance": null,
+            "snippet": "Titan uses mTLS."
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.931180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.931792Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "draft_answer": "Draft answer.",
+        "provider": "mock",
+        "model": null,
+        "passages_used": 1
+      },
+      "timestamp": "2026-11-02T19:28:24.931792Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.932424Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.932424Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.932424Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_error",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {},
+      "error": {
+        "stage": "claim_verification",
+        "kind": "verification",
+        "message": "1 claim(s) failed with verification_error: Judged verification_error."
+      },
+      "timestamp": "2026-11-02T19:28:24.933083Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "error_handler",
+      "from_node": "claim_verification",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.933625Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_error",
+      "node": "error_handler",
+      "from_node": "claim_verification",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "error": {
+          "stage": "claim_verification",
+          "kind": "verification",
+          "message": "1 claim(s) failed with verification_error: Judged verification_error."
+        }
+      },
+      "error": {
+        "stage": "claim_verification",
+        "kind": "verification",
+        "message": "1 claim(s) failed with verification_error: Judged verification_error."
+      },
+      "timestamp": "2026-11-02T19:28:24.934207Z",
+      "kind": "graph"
+    }
+  ],
+  "trace": []
+}

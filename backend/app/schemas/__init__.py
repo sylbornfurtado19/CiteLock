@@ -169,6 +169,7 @@ class AnswerRead(BaseModel):
     verification_status: Optional[str] = None
     execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     metrics: Optional[Dict[str, Any]] = None
+    execution_trace: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -187,6 +188,8 @@ class AnswerRead(BaseModel):
                     data["verification_status"] = cfg["verification_status"]
                 if not data.get("execution_metadata") and "execution_metadata" in cfg:
                     data["execution_metadata"] = cfg["execution_metadata"]
+                if not data.get("execution_trace") and "execution_trace" in cfg:
+                    data["execution_trace"] = cfg["execution_trace"]
         return data
 
 
@@ -213,6 +216,7 @@ class AnswerAuditResponse(BaseModel):
     correction_history: List[Dict[str, Any]] = Field(default_factory=list)
     verification_status: Optional[str] = None
     execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    execution_trace: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
 
 

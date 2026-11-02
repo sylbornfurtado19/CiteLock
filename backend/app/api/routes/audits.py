@@ -128,6 +128,7 @@ def get_answer_audit(
         correction_history=answer.correction_history,
         verification_status=answer.verification_status,
         execution_metadata=answer.execution_metadata,
+        execution_trace=answer.execution_trace,
         created_at=answer.created_at,
     )
 

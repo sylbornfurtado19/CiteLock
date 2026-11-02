@@ -5,6 +5,8 @@ non-serializable runtime dependencies (database session, SSE emit callback, work
 Nodes return partial state updates and delegate the real work to the existing service layer.
 """
 
+import functools
+import json
 import logging
 import time
 import uuid
@@ -95,6 +97,242 @@ def _verification_error_summary(claims: List[Dict[str, Any]]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Execution tracing: real node lifecycle events streamed to the UI and persisted with the answer
+# ---------------------------------------------------------------------------
+
+ROUTER_NODES = ("verification_router", "re_verification")
+ROUTE_TARGETS = {
+    ROUTE_FINALIZE: "final_answer_generation",
+    ROUTE_CORRECT: "self_correction",
+    ROUTE_ABSTAIN: "abstention",
+    ROUTE_ERROR: "error_handler",
+}
+_METRIC_KEYS = ("hallucination_rate", "grounding_rate", "total_claims", "verdict_distribution")
+
+
+def _now_iso() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _trunc(value: Any, limit: int) -> Any:
+    if isinstance(value, str) and len(value) > limit:
+        return value[: limit - 1] + "…"
+    return value
+
+
+def _jsonable(value: Any) -> Any:
+    """Coerce a payload to plain JSON types (UUIDs, datetimes and ORM-free objects become strings)."""
+    return json.loads(json.dumps(value, default=str))
+
+
+def _metrics_subset(metrics: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    return {k: metrics[k] for k in _METRIC_KEYS if metrics and k in metrics}
+
+
+def _claim_summary(c: Dict[str, Any]) -> Dict[str, Any]:
+    evidence = []
+    for link in (c.get("evidence_links") or [])[:3]:
+        evidence.append({
+            "chunk_id": str(link.get("chunk_id")) if link.get("chunk_id") else None,
+            "document": link.get("document_filename"),
+            "quote": _trunc(link.get("exact_quote"), 240),
+            "relevance": link.get("relevance_score"),
+        })
+    return {
+        "index": c.get("claim_index"),
+        "text": c.get("claim_text"),
+        "category": c.get("category"),
+        "verdict": c.get("verdict"),
+        "confidence": c.get("confidence_score"),
+        "rationale": _trunc(c.get("rationale"), 600),
+        "evidence": evidence,
+    }
+
+
+def _llm_identity() -> Dict[str, Any]:
+    """Non-sensitive description of the configured generation model (never keys or endpoints)."""
+    settings = get_settings()
+    provider = settings.llm_provider.lower()
+    model = {
+        "gemini": settings.gemini_llm_model,
+        "groq": settings.groq_llm_model,
+        "openai": settings.openai_llm_model,
+    }.get(provider)
+    return {"provider": provider, "model": model}
+
+
+def _last_node(state: PipelineState) -> Optional[str]:
+    trace = state.get("trace") or []
+    return trace[-1].split(":")[0] if trace else None
+
+
+def _emit_graph(config: RunnableConfig, event: Dict[str, Any]) -> None:
+    emit = _runtime(config).get("emit_graph")
+    if not emit:
+        return
+    try:
+        emit(_jsonable({**event, "timestamp": _now_iso()}))
+    except Exception as err:
+        logger.warning("Error invoking graph emit callback: %s", err)
+
+
+def _node_payload(name: str, before: PipelineState, after: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the sanitized inspection payload for a node from state it actually produced."""
+    claims = after.get("claims") or []
+    if name == "query_input":
+        return {
+            "prompt": after.get("prompt"),
+            "top_k": before.get("top_k"),
+            "max_correction_rounds": after.get("max_correction_rounds"),
+            "abstention_policy": after.get("abstention_policy"),
+        }
+    if name == "evidence_retrieval":
+        passages = after.get("passages") or []
+        return {
+            "passages_count": len(passages),
+            "passages": [
+                {
+                    "chunk_id": str(p.get("chunk_id") or p.get("id")),
+                    "document": p.get("filename"),
+                    "chunk_index": p.get("chunk_index"),
+                    "relevance": p.get("score"),
+                    "snippet": _trunc((p.get("content") or "").strip(), 220),
+                }
+                for p in passages
+            ],
+        }
+    if name == "answer_generation":
+        return {
+            "draft_answer": _trunc(after.get("draft_answer"), 6000),
+            **_llm_identity(),
+            "passages_used": len(after.get("passages") or before.get("passages") or []),
+        }
+    if name == "claim_decomposition":
+        raw = after.get("raw_claims") or []
+        return {
+            "claim_count": len(raw),
+            "claims": [
+                {"index": c.get("claim_index", i), "text": c.get("claim_text"), "category": c.get("category")}
+                for i, c in enumerate(raw)
+            ],
+        }
+    if name == "claim_verification":
+        return {
+            "claims": [_claim_summary(c) for c in claims],
+            "metrics": _metrics_subset(after.get("metrics") or (after.get("initial_verification") or {}).get("metrics")),
+            "verification_errors": sum(1 for c in claims if c.get("verdict") == "verification_error"),
+        }
+    if name == "verification_router":
+        return {
+            "route": after.get("route"),
+            "reason": after.get("route_reason"),
+            "failed_claims": len(select_failed_claims(claims)),
+            "round": after.get("correction_round", 0),
+        }
+    if name == "self_correction":
+        revision = after.get("revision") or {}
+        return {
+            "round": after.get("correction_round"),
+            "max_rounds": before.get("max_correction_rounds"),
+            "stalled": bool(after.get("correction_stalled")),
+            "targeted_claims": revision.get("targeted_claims", []),
+            "previous_answer": _trunc(revision.get("draft_before"), 6000),
+            "revised_answer": _trunc(revision.get("revised_text"), 6000),
+            "new_evidence_chunks": revision.get("new_evidence_chunks", []),
+        }
+    if name == "re_verification":
+        revision = after.get("revision") or {}
+        return {
+            "round": after.get("correction_round"),
+            "skipped_reverification": bool(before.get("correction_stalled")),
+            "failed_before": revision.get("failed_count_before"),
+            "failed_after": len(select_failed_claims(claims)),
+            "metrics_before": _metrics_subset(before.get("metrics")),
+            "metrics_after": _metrics_subset(after.get("metrics")),
+            "claims": [_claim_summary(c) for c in claims],
+            "route": after.get("route"),
+            "reason": after.get("route_reason"),
+        }
+    if name == "abstention":
+        return {"message": ABSTENTION_TEXT}
+    if name == "final_answer_generation":
+        return {
+            "final_text": _trunc(after.get("final_text"), 6000),
+            "verification_status": after.get("verification_status"),
+            "is_abstained": bool(after.get("is_abstained") or before.get("is_abstained")),
+            "correction_rounds": before.get("correction_round", 0),
+            "execution_metadata": after.get("execution_metadata"),
+        }
+    if name == "database_persistence":
+        persisted = after.get("persisted") or {}
+        answer = persisted.get("answer")
+        query = persisted.get("query")
+        return {
+            "persisted": bool(persisted),
+            "answer_id": str(answer.id) if answer is not None else None,
+            "query_id": str(query.id) if query is not None else None,
+            "claim_count": len(before.get("claims") or []),
+        }
+    if name == "error_handler":
+        return {"error": before.get("error")}
+    return {}
+
+
+def traced(name: str):
+    """Wrap a node so its real start, completion, failure and routing decision are emitted and recorded."""
+
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
+            from_node = _last_node(state)
+            started_at = _now_iso()
+            started = time.time()
+            _emit_graph(config, {
+                "event": "node_start", "node": name, "from_node": from_node,
+                "round": state.get("correction_round", 0),
+            })
+
+            update = fn(state, config)
+
+            duration_ms = int((time.time() - started) * 1000)
+            merged = {**state, **update}
+            error = update.get("error") if name != "error_handler" else state.get("error")
+            failed = bool(error)
+            record: Dict[str, Any] = {
+                "node": name,
+                "status": "failed" if failed else "completed",
+                "from_node": from_node,
+                "round": merged.get("correction_round", 0),
+                "started_at": started_at,
+                "ended_at": _now_iso(),
+                "duration_ms": duration_ms,
+                "data": _jsonable(_node_payload(name, state, merged)) if not (failed and name != "error_handler") else {},
+            }
+            if failed:
+                record["error"] = _jsonable(error)
+            if name in ROUTER_NODES and update.get("route"):
+                record["route"] = update["route"]
+                record["to_node"] = ROUTE_TARGETS.get(update["route"])
+
+            _emit_graph(config, {
+                "event": "node_error" if failed else "node_complete",
+                **{k: v for k, v in record.items() if k not in ("started_at", "ended_at", "status")},
+            })
+            if "route" in record:
+                _emit_graph(config, {
+                    "event": "route_decision", "node": name, "route": record["route"],
+                    "to_node": record["to_node"], "reason": update.get("route_reason"),
+                    "round": record["round"],
+                })
+
+            return {**update, "node_events": [record]}
+
+        return wrapper
+
+    return decorator
+
+
+# ---------------------------------------------------------------------------
 # Routing policy
 # ---------------------------------------------------------------------------
 
@@ -142,6 +380,7 @@ def decide_route(state: PipelineState) -> Tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 
+@traced("query_input")
 def query_input(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Validate the request and resolve workspace policy (retry limit, abstention, preferred provider)."""
     runtime = _runtime(config)
@@ -192,6 +431,7 @@ def query_input(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@traced("evidence_retrieval")
 def evidence_retrieval(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Hybrid (vector + lexical) retrieval scoped to the workspace."""
     db = _runtime(config).get("db")
@@ -210,6 +450,7 @@ def evidence_retrieval(state: PipelineState, config: RunnableConfig) -> Dict[str
 # ---------------------------------------------------------------------------
 
 
+@traced("answer_generation")
 def answer_generation(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Draft an answer grounded strictly in the retrieved passages."""
     _emit(config, "generation", "running", "Synthesizing grounded draft answer from retrieved passages...")
@@ -226,6 +467,7 @@ def answer_generation(state: PipelineState, config: RunnableConfig) -> Dict[str,
 # ---------------------------------------------------------------------------
 
 
+@traced("claim_decomposition")
 def claim_decomposition(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Split the draft into atomic, independently verifiable claims."""
     _emit(config, "decomposition", "running", "Decomposing answer into atomic, verifiable factual claims...")
@@ -242,6 +484,7 @@ def claim_decomposition(state: PipelineState, config: RunnableConfig) -> Dict[st
 # ---------------------------------------------------------------------------
 
 
+@traced("claim_verification")
 def claim_verification(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Audit every claim across the structured judge, numeric checks and provenance tracing."""
     _emit(config, "verification", "running", "Auditing atomic claims across structured judge, numeric checks, and citation provenance...")
@@ -273,6 +516,7 @@ def claim_verification(state: PipelineState, config: RunnableConfig) -> Dict[str
 # ---------------------------------------------------------------------------
 
 
+@traced("verification_router")
 def verification_router(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Evaluate verdicts against workspace policy and record the routing decision; edges branch on it."""
     _emit(config, "correction", "running", "Evaluating verification verdicts and executing self-correction if required...")
@@ -286,6 +530,7 @@ def verification_router(state: PipelineState, config: RunnableConfig) -> Dict[st
 # ---------------------------------------------------------------------------
 
 
+@traced("self_correction")
 def self_correction(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Run one bounded correction round: targeted retrieval, then a surgical revision of the draft."""
     runtime = _runtime(config)
@@ -331,6 +576,7 @@ def self_correction(state: PipelineState, config: RunnableConfig) -> Dict[str, A
 # ---------------------------------------------------------------------------
 
 
+@traced("re_verification")
 def re_verification(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Re-extract and re-verify every claim in the revised answer, then route again."""
     if state.get("correction_stalled"):
@@ -378,6 +624,7 @@ def re_verification(state: PipelineState, config: RunnableConfig) -> Dict[str, A
 # ---------------------------------------------------------------------------
 
 
+@traced("abstention")
 def abstention(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Replace the answer with an explicit abstention when the evidence cannot support it."""
     return {"final_text": ABSTENTION_TEXT, "is_abstained": True, "trace": ["abstention"]}
@@ -388,6 +635,7 @@ def abstention(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@traced("final_answer_generation")
 def final_answer_generation(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Assemble the final text, verification status and execution metadata."""
     claims = state.get("claims", [])
@@ -444,6 +692,7 @@ def final_answer_generation(state: PipelineState, config: RunnableConfig) -> Dic
 # ---------------------------------------------------------------------------
 
 
+@traced("database_persistence")
 def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Persist the query, answer, claims, evidence links, verification runs and audit trail atomically."""
     db = _runtime(config).get("db")
@@ -459,6 +708,14 @@ def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[s
     verification_status = state.get("verification_status", "unresolved")
     latency_ms = execution_metadata.get("latency_ms")
     initial_verification = state.get("initial_verification") or {}
+    # A saved answer implies the commit below succeeded, so this node is recorded as completed in its own trace.
+    execution_trace = _jsonable(list(state.get("node_events") or []) + [{
+        "node": "database_persistence",
+        "status": "completed",
+        "from_node": _last_node(state),
+        "round": rounds,
+        "data": {"persisted": True},
+    }])
 
     try:
         _emit(config, "finalizing", "running", "Persisting verified answer, claim relations, and audit trail ledger...")
@@ -485,6 +742,7 @@ def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[s
                 "correction_history": correction_history,
                 "verification_status": verification_status,
                 "execution_metadata": execution_metadata,
+                "execution_trace": execution_trace,
             },
         )
         db.add(answer_record)
@@ -639,6 +897,7 @@ def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[s
 # ---------------------------------------------------------------------------
 
 
+@traced("error_handler")
 def error_handler(state: PipelineState, config: RunnableConfig) -> Dict[str, Any]:
     """Record provider and verification failures as failed queries; the caller re-raises the original error."""
     error: PipelineError = state.get("error") or {"stage": "unknown", "kind": "internal", "message": "Unknown pipeline failure."}

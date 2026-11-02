@@ -36,6 +36,10 @@ class Answer(Base):
         return (self.model_config_data or {}).get("execution_metadata", {})
 
     @property
+    def execution_trace(self):
+        return (self.model_config_data or {}).get("execution_trace", [])
+
+    @property
     def verification_status(self):
         return (self.model_config_data or {}).get("verification_status")
 

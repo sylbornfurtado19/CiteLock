@@ -61,6 +61,14 @@ def run_pipeline(
             except Exception as evt_err:
                 logger.warning("Error invoking on_event callback: %s", evt_err)
 
+    def emit_graph(event: Dict[str, Any]):
+        """Forward a real LangGraph node lifecycle event (kind="graph") to the streaming listener."""
+        if on_event:
+            try:
+                on_event({**event, "kind": "graph"})
+            except Exception as evt_err:
+                logger.warning("Error invoking on_event callback for graph event: %s", evt_err)
+
     # Resolve workspace settings for cache key and pipeline parameters
     ws_settings = {}
     if workspace_id and db:
@@ -143,6 +151,7 @@ def run_pipeline(
             top_k=top_k,
             ws_settings=ws_settings,
             emit=emit,
+            emit_graph=emit_graph,
             start_time=start_time,
         )
 
@@ -199,11 +208,12 @@ def _run_pipeline_execution(
     ws_settings: Dict[str, Any],
     emit: Callable,
     start_time: float,
+    emit_graph: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Execute the audited pipeline through the compiled LangGraph StateGraph (see app.pipeline.graph)."""
     final_state = run_graph(
-        {"prompt": prompt, "workspace_id": workspace_id, "top_k": top_k, "trace": []},
-        {"db": db, "emit": emit, "ws_settings": ws_settings, "start_time": start_time},
+        {"prompt": prompt, "workspace_id": workspace_id, "top_k": top_k, "trace": [], "node_events": []},
+        {"db": db, "emit": emit, "emit_graph": emit_graph, "ws_settings": ws_settings, "start_time": start_time},
     )
 
     error_exc = final_state.get("error_exception")
@@ -234,4 +244,5 @@ def _run_pipeline_execution(
         "metrics": final_state["metrics"],
         "latency_ms": execution_metadata["latency_ms"],
         "graph_trace": final_state.get("trace", []),
+        "execution_trace": final_state.get("node_events", []),
     }

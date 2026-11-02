@@ -73,5 +73,6 @@ class PipelineState(TypedDict, total=False):
     status: str
     started_at: float
     trace: Annotated[List[str], operator.add]
+    node_events: Annotated[List[Dict[str, Any]], operator.add]
     error: Optional[PipelineError]
     error_exception: Optional[BaseException]

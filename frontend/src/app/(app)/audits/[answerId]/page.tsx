@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { ExecutionPanel } from "@/components/execution/ExecutionPanel";
+import { restoreFromTrace } from "@/lib/execution/reducer";
+import type { TraceRecord } from "@/types/execution";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Download, AlertCircle, Loader2 } from "lucide-react";
@@ -12,6 +15,28 @@ import { useWorkspace } from "@/lib/workspace";
 import { Skeleton, SkeletonText, SkeletonCard, SkeletonClaimCard } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { useWorkspaceAuditDetail } from "@/lib/query";
+
+function PersistedExecution({ trace, workspaceId }: { trace?: TraceRecord[]; workspaceId: string }) {
+  const state = useMemo(() => (trace?.length ? restoreFromTrace(trace) : null), [trace]);
+
+  if (!state) {
+    return (
+      <div className="rounded-2xl border border-purple-900/25 bg-[#100A1C]/50 p-5 text-sm text-[#8D829F]">
+        No execution trace was persisted for this answer. It was created before the LangGraph execution trace was recorded.
+      </div>
+    );
+  }
+
+  return (
+    <ExecutionPanel
+      state={state}
+      workspaceId={workspaceId}
+      collapsible
+      defaultCollapsed
+      heightClassName="h-[520px]"
+    />
+  );
+}
 
 export default function AuditDetailPage() {
   const params = useParams();
@@ -188,6 +213,9 @@ export default function AuditDetailPage() {
         </span>
         <p className="text-sm font-medium text-[#F5F0FF] leading-relaxed">{auditData.prompt}</p>
       </div>
+
+      {/* LangGraph execution restored from the trace persisted with this answer */}
+      <PersistedExecution trace={auditData.execution_trace} workspaceId={workspaceId} />
 
       {/* Self-Correction Lifecycle Timeline with Word-Level Diff */}
       <CorrectionTimeline

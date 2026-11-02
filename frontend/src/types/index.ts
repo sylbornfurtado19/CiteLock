@@ -2,6 +2,8 @@
  * TypeScript definitions mirroring CiteLock backend schemas and models.
  */
 
+import type { TraceRecord } from "./execution";
+
 export type Verdict =
   | "supported"
   | "partially_supported"
@@ -90,6 +92,8 @@ export interface Answer {
   correction_rounds: number;
   is_abstained: boolean;
   claims: Claim[];
+  /** Persisted LangGraph node trace, used to restore the execution graph. */
+  execution_trace?: TraceRecord[];
   created_at: string;
 }
 
@@ -119,6 +123,7 @@ export interface AnswerAudit {
   correction_history?: CorrectionRound[];
   verification_status?: string;
   execution_metadata?: Record<string, any>;
+  execution_trace?: TraceRecord[];
   created_at: string;
 }
 

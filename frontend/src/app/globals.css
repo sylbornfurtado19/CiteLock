@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Execution graph: animated flow on edges whose transition is actually in progress */
+@keyframes exec-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+.exec-edge-active {
+  stroke-dasharray: 8 6;
+  animation: exec-flow 0.7s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.65));
+}
+
+.exec-controls {
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.exec-controls .react-flow__controls-button {
+  background: #0e071d;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+  fill: #c4b7db;
+  color: #c4b7db;
+}
+
+.exec-controls .react-flow__controls-button:hover {
+  background: #1e1435;
+}
+
+.exec-minimap {
+  background: #0b0517 !important;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 10px;
+}
+
+.react-flow__edge-path {
+  transition: stroke 0.25s ease, stroke-width 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exec-edge-active {
+    animation: none;
+  }
+}
+
 :root {
   /* Canvas & Surface Geometry */
   --background: #05020D;

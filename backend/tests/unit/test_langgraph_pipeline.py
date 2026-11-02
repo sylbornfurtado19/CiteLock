@@ -283,12 +283,205 @@ def test_sse_events_keep_existing_stage_names(db, workspace_a, scenario):
     events = []
     run(db, workspace_a, on_event=events.append)
 
-    stages = [(e["stage"], e["status"]) for e in events]
+    stages = [(e["stage"], e["status"]) for e in stage_events(events)]
     assert stages[0] == ("retrieval", "running")
     for expected in [("retrieval", "completed"), ("generation", "completed"), ("decomposition", "completed"),
                      ("verification", "completed"), ("correction", "completed"), ("finalizing", "completed")]:
         assert expected in stages
-    assert {e["stage"] for e in events} <= {"retrieval", "generation", "decomposition", "verification", "correction", "finalizing"}
+    assert {e["stage"] for e in stage_events(events)} <= {"retrieval", "generation", "decomposition", "verification", "correction", "finalizing"}
+
+
+# ---------------------------------------------------------------------------
+# Real node lifecycle events (drive the execution graph UI) and persisted trace
+# ---------------------------------------------------------------------------
+
+
+def stage_events(events):
+    return [e for e in events if "stage" in e]
+
+
+def graph_events(events):
+    return [e for e in events if e.get("kind") == "graph"]
+
+
+def test_every_node_emits_real_start_and_complete_events_in_order(db, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
+    events = []
+    run(db, workspace_a, on_event=events.append)
+
+    ge = graph_events(events)
+    starts = [e["node"] for e in ge if e["event"] == "node_start"]
+    completes = [e["node"] for e in ge if e["event"] == "node_complete"]
+    expected = ["query_input", "evidence_retrieval", "answer_generation", "claim_decomposition",
+                "claim_verification", "verification_router", "final_answer_generation", "database_persistence"]
+    assert starts == expected and completes == expected
+    # Each start names the real predecessor, so the UI can animate only edges that were actually taken
+    assert [e["from_node"] for e in ge if e["event"] == "node_start"][:3] == [None, "query_input", "evidence_retrieval"]
+    # start always precedes the matching complete
+    for node in expected:
+        first_start = next(i for i, e in enumerate(ge) if e["node"] == node and e["event"] == "node_start")
+        first_done = next(i for i, e in enumerate(ge) if e["node"] == node and e["event"] == "node_complete")
+        assert first_start < first_done
+    assert all("timestamp" in e for e in ge)
+
+
+def test_router_emits_a_route_decision_with_the_real_target(db, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("bad", "unsupported")), verification(claim("ok", "supported"))]
+    scenario.revisions = ["fixed"]
+    events = []
+    run(db, workspace_a, on_event=events.append)
+
+    decisions = [e for e in graph_events(events) if e["event"] == "route_decision"]
+    assert [(d["node"], d["route"], d["to_node"]) for d in decisions] == [
+        ("verification_router", "correct", "self_correction"),
+        ("re_verification", "finalize", "final_answer_generation"),
+    ]
+    assert all(d["reason"] for d in decisions)
+
+
+def test_node_payloads_carry_inspection_data(db, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("bad", "contradicted")), verification(claim("ok", "supported"))]
+    scenario.revisions = ["fixed answer"]
+    events = []
+    run(db, workspace_a, on_event=events.append)
+
+    by_node = {}
+    for e in graph_events(events):
+        if e["event"] == "node_complete":
+            by_node.setdefault(e["node"], []).append(e)
+
+    retrieval = by_node["evidence_retrieval"][0]["data"]
+    assert retrieval["passages_count"] == 1 and retrieval["passages"][0]["document"] == "titan.txt"
+    assert by_node["answer_generation"][0]["data"]["draft_answer"] == "Draft answer."
+    assert by_node["claim_decomposition"][0]["data"]["claim_count"] == 1
+    verify = by_node["claim_verification"][0]["data"]
+    assert verify["claims"][0]["verdict"] == "contradicted" and "rationale" in verify["claims"][0]
+    correction = by_node["self_correction"][0]
+    assert correction["round"] == 1
+    assert correction["data"]["previous_answer"] == "Draft answer." and correction["data"]["revised_answer"] == "fixed answer"
+    reverify = by_node["re_verification"][0]["data"]
+    assert reverify["failed_before"] == 1 and reverify["failed_after"] == 0
+    assert "hallucination_rate" in reverify["metrics_before"] and "hallucination_rate" in reverify["metrics_after"]
+    assert by_node["database_persistence"][0]["data"]["persisted"] is True
+
+
+def test_payloads_never_contain_secrets(db, workspace_a, scenario, monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "sk-super-secret-value")
+    scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
+    events = []
+    run(db, workspace_a, on_event=events.append)
+
+    blob = repr(graph_events(events)).lower()
+    for forbidden in ("api_key", "secret", "password", "bearer", "database_url", "private_key"):
+        assert forbidden not in blob
+
+
+def test_node_failure_emits_node_error_then_error_handler(db, workspace_a, scenario, monkeypatch):
+    scenario.verify_results = [verification(claim("c", "verification_error"))]
+    events = []
+    with pytest.raises(VerificationProviderError):
+        run(db, workspace_a, on_event=events.append)
+
+    ge = graph_events(events)
+    failed = [e for e in ge if e["event"] == "node_error"]
+    assert [e["node"] for e in failed] == ["claim_verification", "error_handler"] or failed[0]["node"] == "claim_verification"
+    assert failed[0]["error"]["kind"] == "verification"
+    handler_start = next(e for e in ge if e["node"] == "error_handler" and e["event"] == "node_start")
+    assert handler_start["from_node"] == "claim_verification"
+    assert not any(e["node"] == "database_persistence" for e in ge)
+
+
+def test_execution_trace_is_persisted_with_the_answer(db, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("bad", "unsupported")), verification(claim("ok", "supported"))]
+    scenario.revisions = ["fixed"]
+    result = run(db, workspace_a)
+
+    answer = db.query(Answer).filter(Answer.id == result["answer_id"]).one()
+    trace = answer.execution_trace
+    assert [t["node"] for t in trace] == [
+        "query_input", "evidence_retrieval", "answer_generation", "claim_decomposition", "claim_verification",
+        "verification_router", "self_correction", "re_verification", "final_answer_generation", "database_persistence",
+    ]
+    assert all(t["status"] == "completed" for t in trace)
+    router = next(t for t in trace if t["node"] == "verification_router")
+    assert router["route"] == "correct" and router["to_node"] == "self_correction"
+    assert next(t for t in trace if t["node"] == "self_correction")["round"] == 1
+
+
+def test_trace_is_exposed_by_query_and_audit_endpoints(client, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
+
+    res = client.post(f"/api/v1/workspaces/{workspace_a.id}/queries", json={"prompt": "How do they talk?", "top_k": 3})
+    assert res.status_code == 201
+    answer = res.json()["answer"]
+    assert [t["node"] for t in answer["execution_trace"]][0] == "query_input"
+
+    audit = client.get(f"/api/v1/workspaces/{workspace_a.id}/audits/{answer['id']}")
+    assert audit.status_code == 200
+    assert audit.json()["execution_trace"] == answer["execution_trace"]
+
+
+def test_sse_endpoint_streams_graph_events(client, workspace_a, scenario):
+    scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
+
+    res = client.post(f"/api/v1/workspaces/{workspace_a.id}/queries/stream", json={"prompt": "Stream me please", "top_k": 3})
+
+    assert res.status_code == 200
+    body = res.text
+    assert "event: graph_event" in body and "event: pipeline_event" in body and "event: pipeline_complete" in body
+    assert body.index("event: graph_event") < body.index("event: pipeline_complete")
+    assert '"node": "claim_verification"' in body
+
+
+def test_dump_frontend_fixtures(db, workspace_a, scenario):
+    """Regenerate the execution-graph fixtures the frontend tests replay (set CITELOCK_DUMP_FIXTURES=<dir>).
+
+    The fixtures are recorded from real graph runs: the live `graph_event` stream plus the persisted trace.
+    """
+    import json
+    import os
+
+    out_dir = os.environ.get("CITELOCK_DUMP_FIXTURES")
+    if not out_dir:
+        pytest.skip("Set CITELOCK_DUMP_FIXTURES to regenerate frontend fixtures.")
+    os.makedirs(out_dir, exist_ok=True)
+
+    def record(name, setup, expect_error=None, **policy):
+        scenario.calls.update({"verify": 0, "revise": 0, "decompose": 0})
+        setup()
+        set_workspace_policy(db, workspace_a, **policy)
+        events = []
+        trace = []
+        try:
+            result = run(db, workspace_a, prompt=f"fixture {name}", on_event=events.append)
+            trace = db.query(Answer).filter(Answer.id == result["answer_id"]).one().execution_trace
+        except Exception as exc:  # noqa: BLE001 - failure scenarios are recorded on purpose
+            assert expect_error and isinstance(exc, expect_error)
+        with open(os.path.join(out_dir, f"{name}.json"), "w", encoding="utf-8") as fh:
+            json.dump({"scenario": name, "events": graph_events(events), "trace": trace}, fh, indent=2)
+
+    def verified():
+        scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
+
+    def corrected():
+        scenario.verify_results = [
+            verification(claim("Titan uses SSH.", "contradicted")),
+            verification(claim("Titan uses TLS.", "unsupported")),
+            verification(claim("Titan uses mTLS.", "supported")),
+        ]
+        scenario.revisions = ["Titan uses TLS.", "Titan uses mTLS."]
+
+    def abstained():
+        scenario.verify_results = [verification(claim("Titan uses magic.", "unsupported"))]
+        scenario.revisions = ["attempt one", "attempt two"]
+
+    def failed():
+        scenario.verify_results = [verification(claim("c", "verification_error"))]
+
+    record("verified", verified)
+    record("corrected", corrected, max_correction_retries=3)
+    record("abstained", abstained, max_correction_retries=2, abstention_policy="strict")
+    record("failed", failed, expect_error=VerificationProviderError)
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +696,7 @@ def test_verification_error_claims_raise_verification_provider_error(db, workspa
     with pytest.raises(VerificationProviderError):
         run(db, workspace_a, on_event=events.append)
 
-    assert ("verification", "failed") in [(e["stage"], e["status"]) for e in events]
+    assert ("verification", "failed") in [(e["stage"], e["status"]) for e in stage_events(events)]
     failed = failed_queries(db, workspace_a)
     assert len(failed) == 1 and "verification_error" in failed[0].query_parameters["error_summary"]
     assert answer_count(db, workspace_a) == 0
@@ -520,7 +713,7 @@ def test_verification_error_during_reverification_is_an_error_not_a_pass(db, wor
     with pytest.raises(VerificationProviderError):
         run(db, workspace_a, on_event=events.append)
 
-    assert ("correction", "failed") in [(e["stage"], e["status"]) for e in events]
+    assert ("correction", "failed") in [(e["stage"], e["status"]) for e in stage_events(events)]
     assert len(failed_queries(db, workspace_a)) == 1
 
 

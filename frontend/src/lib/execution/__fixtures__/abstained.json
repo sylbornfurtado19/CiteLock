@@ -1,0 +1,809 @@
+{
+  "scenario": "abstained",
+  "events": [
+    {
+      "event": "node_start",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.912046Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "query_input",
+      "from_node": null,
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "prompt": "fixture abstained",
+        "top_k": 3,
+        "max_correction_rounds": 2,
+        "abstention_policy": "strict"
+      },
+      "timestamp": "2026-11-02T19:28:24.912046Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.912605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "evidence_retrieval",
+      "from_node": "query_input",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "passages_count": 1,
+        "passages": [
+          {
+            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
+            "document": "titan.txt",
+            "chunk_index": null,
+            "relevance": null,
+            "snippet": "Titan uses mTLS."
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.912605Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.913159Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "answer_generation",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "draft_answer": "Draft answer.",
+        "provider": "mock",
+        "model": null,
+        "passages_used": 1
+      },
+      "timestamp": "2026-11-02T19:28:24.913159Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.913159Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "claim_decomposition",
+      "from_node": "answer_generation",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null
+          }
+        ]
+      },
+      "timestamp": "2026-11-02T19:28:24.913159Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.913775Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "claim_verification",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "metrics": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "verification_errors": 0
+      },
+      "timestamp": "2026-11-02T19:28:24.913775Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "verification_router",
+      "from_node": "claim_verification",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.914480Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "verification_router",
+      "from_node": "claim_verification",
+      "round": 0,
+      "duration_ms": 0,
+      "data": {
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 1 of 2.",
+        "failed_claims": 1,
+        "round": 0
+      },
+      "route": "correct",
+      "to_node": "self_correction",
+      "timestamp": "2026-11-02T19:28:24.914480Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "verification_router",
+      "route": "correct",
+      "to_node": "self_correction",
+      "reason": "1 claim(s) need correction; round 1 of 2.",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.914480Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "self_correction",
+      "from_node": "verification_router",
+      "round": 0,
+      "timestamp": "2026-11-02T19:28:24.914480Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "self_correction",
+      "from_node": "verification_router",
+      "round": 1,
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "max_rounds": 2,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses magic."
+        ],
+        "previous_answer": "Draft answer.",
+        "revised_answer": "attempt one",
+        "new_evidence_chunks": []
+      },
+      "timestamp": "2026-11-02T19:28:24.915180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.915180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 1,
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 2 of 2."
+      },
+      "route": "correct",
+      "to_node": "self_correction",
+      "timestamp": "2026-11-02T19:28:24.915180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "re_verification",
+      "route": "correct",
+      "to_node": "self_correction",
+      "reason": "1 claim(s) need correction; round 2 of 2.",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.915180Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "self_correction",
+      "from_node": "re_verification",
+      "round": 1,
+      "timestamp": "2026-11-02T19:28:24.915885Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "self_correction",
+      "from_node": "re_verification",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "max_rounds": 2,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses magic."
+        ],
+        "previous_answer": "attempt one",
+        "revised_answer": "attempt two",
+        "new_evidence_chunks": []
+      },
+      "timestamp": "2026-11-02T19:28:24.915885Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.916573Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "re_verification",
+      "from_node": "self_correction",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "abstain",
+        "reason": "Retry limit of 2 correction round(s) reached. Abstaining under the 'strict' policy."
+      },
+      "route": "abstain",
+      "to_node": "abstention",
+      "timestamp": "2026-11-02T19:28:24.916573Z",
+      "kind": "graph"
+    },
+    {
+      "event": "route_decision",
+      "node": "re_verification",
+      "route": "abstain",
+      "to_node": "abstention",
+      "reason": "Retry limit of 2 correction round(s) reached. Abstaining under the 'strict' policy.",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.916573Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "abstention",
+      "from_node": "re_verification",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.917279Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "abstention",
+      "from_node": "re_verification",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "message": "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
+      },
+      "timestamp": "2026-11-02T19:28:24.917279Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "final_answer_generation",
+      "from_node": "abstention",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.917279Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "final_answer_generation",
+      "from_node": "abstention",
+      "round": 2,
+      "duration_ms": 0,
+      "data": {
+        "final_text": "The provided reference documents do not contain sufficient evidence to confirm the stated claims.",
+        "verification_status": "abstained",
+        "is_abstained": true,
+        "correction_rounds": 2,
+        "execution_metadata": {
+          "latency_ms": 6,
+          "top_k": 3,
+          "retrieved_passages_count": 1,
+          "initial_claim_count": 1,
+          "final_claim_count": 1,
+          "llm_provider": "mock",
+          "correction_rounds": 2,
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "cache_hit": false,
+          "orchestrator": "langgraph",
+          "router_decision": "abstain",
+          "router_reason": "Retry limit of 2 correction round(s) reached. Abstaining under the 'strict' policy."
+        }
+      },
+      "timestamp": "2026-11-02T19:28:24.917279Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_start",
+      "node": "database_persistence",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "timestamp": "2026-11-02T19:28:24.917985Z",
+      "kind": "graph"
+    },
+    {
+      "event": "node_complete",
+      "node": "database_persistence",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "duration_ms": 6,
+      "data": {
+        "persisted": true,
+        "answer_id": "e3ff586f-c123-489b-a10f-2f55032d4631",
+        "query_id": "8a717743-2308-45c1-bc62-1d29634fd8d8",
+        "claim_count": 1
+      },
+      "timestamp": "2026-11-02T19:28:24.924774Z",
+      "kind": "graph"
+    }
+  ],
+  "trace": [
+    {
+      "node": "query_input",
+      "status": "completed",
+      "from_node": null,
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.912046Z",
+      "ended_at": "2026-11-02T19:28:24.912046Z",
+      "duration_ms": 0,
+      "data": {
+        "prompt": "fixture abstained",
+        "top_k": 3,
+        "max_correction_rounds": 2,
+        "abstention_policy": "strict"
+      }
+    },
+    {
+      "node": "evidence_retrieval",
+      "status": "completed",
+      "from_node": "query_input",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.912605Z",
+      "ended_at": "2026-11-02T19:28:24.912605Z",
+      "duration_ms": 0,
+      "data": {
+        "passages_count": 1,
+        "passages": [
+          {
+            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
+            "document": "titan.txt",
+            "chunk_index": null,
+            "relevance": null,
+            "snippet": "Titan uses mTLS."
+          }
+        ]
+      }
+    },
+    {
+      "node": "answer_generation",
+      "status": "completed",
+      "from_node": "evidence_retrieval",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.913159Z",
+      "ended_at": "2026-11-02T19:28:24.913159Z",
+      "duration_ms": 0,
+      "data": {
+        "draft_answer": "Draft answer.",
+        "provider": "mock",
+        "model": null,
+        "passages_used": 1
+      }
+    },
+    {
+      "node": "claim_decomposition",
+      "status": "completed",
+      "from_node": "answer_generation",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.913159Z",
+      "ended_at": "2026-11-02T19:28:24.913159Z",
+      "duration_ms": 0,
+      "data": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses mTLS.",
+            "category": null
+          }
+        ]
+      }
+    },
+    {
+      "node": "claim_verification",
+      "status": "completed",
+      "from_node": "claim_decomposition",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.913775Z",
+      "ended_at": "2026-11-02T19:28:24.913775Z",
+      "duration_ms": 0,
+      "data": {
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "metrics": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "verification_errors": 0
+      }
+    },
+    {
+      "node": "verification_router",
+      "status": "completed",
+      "from_node": "claim_verification",
+      "round": 0,
+      "started_at": "2026-11-02T19:28:24.914480Z",
+      "ended_at": "2026-11-02T19:28:24.914480Z",
+      "duration_ms": 0,
+      "data": {
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 1 of 2.",
+        "failed_claims": 1,
+        "round": 0
+      },
+      "route": "correct",
+      "to_node": "self_correction"
+    },
+    {
+      "node": "self_correction",
+      "status": "completed",
+      "from_node": "verification_router",
+      "round": 1,
+      "started_at": "2026-11-02T19:28:24.914480Z",
+      "ended_at": "2026-11-02T19:28:24.915180Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "max_rounds": 2,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses magic."
+        ],
+        "previous_answer": "Draft answer.",
+        "revised_answer": "attempt one",
+        "new_evidence_chunks": []
+      }
+    },
+    {
+      "node": "re_verification",
+      "status": "completed",
+      "from_node": "self_correction",
+      "round": 1,
+      "started_at": "2026-11-02T19:28:24.915180Z",
+      "ended_at": "2026-11-02T19:28:24.915180Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 1,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "correct",
+        "reason": "1 claim(s) need correction; round 2 of 2."
+      },
+      "route": "correct",
+      "to_node": "self_correction"
+    },
+    {
+      "node": "self_correction",
+      "status": "completed",
+      "from_node": "re_verification",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.915885Z",
+      "ended_at": "2026-11-02T19:28:24.915885Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "max_rounds": 2,
+        "stalled": false,
+        "targeted_claims": [
+          "Titan uses magic."
+        ],
+        "previous_answer": "attempt one",
+        "revised_answer": "attempt two",
+        "new_evidence_chunks": []
+      }
+    },
+    {
+      "node": "re_verification",
+      "status": "completed",
+      "from_node": "self_correction",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.916573Z",
+      "ended_at": "2026-11-02T19:28:24.916573Z",
+      "duration_ms": 0,
+      "data": {
+        "round": 2,
+        "skipped_reverification": false,
+        "failed_before": 1,
+        "failed_after": 1,
+        "metrics_before": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "metrics_after": {
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "total_claims": 1,
+          "verdict_distribution": {
+            "supported": 0,
+            "partially_supported": 0,
+            "contradicted": 0,
+            "unsupported": 1,
+            "insufficient_evidence": 0,
+            "verification_error": 0,
+            "unknown": 0
+          }
+        },
+        "claims": [
+          {
+            "index": 0,
+            "text": "Titan uses magic.",
+            "category": null,
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "rationale": "Judged unsupported.",
+            "evidence": []
+          }
+        ],
+        "route": "abstain",
+        "reason": "Retry limit of 2 correction round(s) reached. Abstaining under the 'strict' policy."
+      },
+      "route": "abstain",
+      "to_node": "abstention"
+    },
+    {
+      "node": "abstention",
+      "status": "completed",
+      "from_node": "re_verification",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.917279Z",
+      "ended_at": "2026-11-02T19:28:24.917279Z",
+      "duration_ms": 0,
+      "data": {
+        "message": "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
+      }
+    },
+    {
+      "node": "final_answer_generation",
+      "status": "completed",
+      "from_node": "abstention",
+      "round": 2,
+      "started_at": "2026-11-02T19:28:24.917279Z",
+      "ended_at": "2026-11-02T19:28:24.917279Z",
+      "duration_ms": 0,
+      "data": {
+        "final_text": "The provided reference documents do not contain sufficient evidence to confirm the stated claims.",
+        "verification_status": "abstained",
+        "is_abstained": true,
+        "correction_rounds": 2,
+        "execution_metadata": {
+          "latency_ms": 6,
+          "top_k": 3,
+          "retrieved_passages_count": 1,
+          "initial_claim_count": 1,
+          "final_claim_count": 1,
+          "llm_provider": "mock",
+          "correction_rounds": 2,
+          "hallucination_rate": 1.0,
+          "grounding_rate": 0.0,
+          "cache_hit": false,
+          "orchestrator": "langgraph",
+          "router_decision": "abstain",
+          "router_reason": "Retry limit of 2 correction round(s) reached. Abstaining under the 'strict' policy."
+        }
+      }
+    },
+    {
+      "node": "database_persistence",
+      "status": "completed",
+      "from_node": "final_answer_generation",
+      "round": 2,
+      "data": {
+        "persisted": true
+      }
+    }
+  ]
+}
