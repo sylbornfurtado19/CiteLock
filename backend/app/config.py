@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = "text-embedding-004"
 
     max_correction_retries: int = 2
+    max_verification_workers: int = 5
     chunk_size: int = 500
     chunk_overlap: int = 50
     max_file_size_mb: int = 25
