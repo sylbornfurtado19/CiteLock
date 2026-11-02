@@ -68,12 +68,18 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
             ))
         except Exception as e:
             logger.exception("Pipeline streaming execution failed: %s", e)
+            from app.config import get_settings
+            detail = (
+                f" ({type(e).__name__}: {str(e)[:300]})"
+                if get_settings().environment.lower() != "production"
+                else ""
+            )
             event_queue.put((
                 "pipeline_error",
                 {
                     "stage": "execution",
                     "status": "failed",
-                    "message": "An internal error occurred while processing the query.",
+                    "message": f"An internal error occurred while processing the query.{detail}",
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
             ))

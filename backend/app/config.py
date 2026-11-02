@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
 
     # Gemini model IDs must be checked against currently available models.
-    gemini_llm_model: str = "gemini-2.5-flash"
+    gemini_llm_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
 
     max_correction_retries: int = 2
