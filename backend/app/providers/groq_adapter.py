@@ -1,6 +1,7 @@
 """Groq API provider adapter (OpenAI-compatible chat completions; LLM only, no embeddings)."""
 
-from typing import List, Optional
+import logging
+from typing import Any, Dict, List, Optional
 import httpx
 
 from app.config import get_settings
@@ -8,18 +9,82 @@ from app.providers.base import ProviderError
 from app.providers.http_client import get_http_client
 from app.providers.openai_adapter import OpenAIProvider
 
+logger = logging.getLogger(__name__)
+
+# Non-chat models served by Groq that must never be picked for text generation.
+_EXCLUDED_MODEL_MARKERS = ("whisper", "guard", "tts", "playai", "embed", "orpheus", "safeguard")
+# Substrings ranked by preference when auto-selecting a chat model.
+_PREFERRED_MODEL_MARKERS = ("versatile", "70b", "120b", "llama", "gpt-oss", "qwen")
+
 
 class GroqProvider(OpenAIProvider):
     """Groq integration reusing the OpenAI chat-completions adapter against Groq's compatible endpoint."""
+
+    _resolved_model: Optional[str] = None
 
     def __init__(self, client: Optional[httpx.Client] = None):
         settings = get_settings()
         self.api_key = settings.llm_api_key
         self.embedding_key = None
-        self.llm_model = settings.groq_llm_model
+        self.llm_model = GroqProvider._resolved_model or settings.groq_llm_model
         self.embedding_model = ""
         self.base_url = "https://api.groq.com/openai/v1"
         self._client = client or get_http_client("groq")
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         raise ProviderError("Groq does not provide embeddings; set EMBEDDING_PROVIDER to gemini or openai.")
+
+    def _pick_available_model(self) -> str:
+        """Query Groq for models this key can use and choose the best chat-capable one."""
+        try:
+            res = self._client.get(
+                f"{self.base_url}/models",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+            if res.status_code != 200:
+                raise ProviderError(f"Groq model listing returned HTTP {res.status_code}: {res.text[:200]}")
+            ids = [m["id"] for m in res.json().get("data", []) if m.get("active", True)]
+        except ProviderError:
+            raise
+        except Exception as e:
+            raise ProviderError(f"Failed to list Groq models: {str(e)[:200]}")
+
+        chat_ids = [i for i in ids if not any(x in i.lower() for x in _EXCLUDED_MODEL_MARKERS)]
+        if not chat_ids:
+            raise ProviderError("No chat-capable Groq models are available for this API key.")
+
+        def rank(model_id: str) -> int:
+            lowered = model_id.lower()
+            for position, marker in enumerate(_PREFERRED_MODEL_MARKERS):
+                if marker in lowered:
+                    return position
+            return len(_PREFERRED_MODEL_MARKERS)
+
+        chosen = sorted(chat_ids, key=lambda i: (rank(i), i))[0]
+        logger.warning("Groq model '%s' unavailable; auto-selected '%s'", self.llm_model, chosen)
+        GroqProvider._resolved_model = chosen
+        self.llm_model = chosen
+        return chosen
+
+    @staticmethod
+    def _is_model_missing(error: ProviderError) -> bool:
+        text = str(error)
+        return "model_not_found" in text or "decommissioned" in text or "does not exist" in text
+
+    def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
+        try:
+            return super().complete(prompt, system_prompt=system_prompt, temperature=temperature)
+        except ProviderError as e:
+            if not self._is_model_missing(e):
+                raise
+            self._pick_available_model()
+            return super().complete(prompt, system_prompt=system_prompt, temperature=temperature)
+
+    def structured_judge(self, claim: str, evidence_passages: List[str]) -> Dict[str, Any]:
+        try:
+            return super().structured_judge(claim, evidence_passages)
+        except ProviderError as e:
+            if not self._is_model_missing(e):
+                raise
+            self._pick_available_model()
+            return super().structured_judge(claim, evidence_passages)
