@@ -1,4 +1,8 @@
-"""Self-correction controller managing iterative revision loops, targeted evidence retrieval, and abstention."""
+"""Self-correction controller managing iterative revision loops, targeted evidence retrieval, and abstention.
+
+The single-step building blocks (targeted retrieval, answer revision, abstention policy) are shared by the
+LangGraph pipeline nodes in app.pipeline.nodes and by the standalone execute_correction_loop below.
+"""
 
 import logging
 from typing import List, Dict, Any, Tuple, Optional
@@ -9,6 +13,104 @@ from app.services.verification.engine import verify_claims
 from app.security.injection_guard import sanitize_untrusted_passage
 
 logger = logging.getLogger(__name__)
+
+# Verdicts that require repair before an answer can be considered verified.
+FAILED_VERDICTS = ("unsupported", "contradicted", "insufficient_evidence", "partially_supported")
+
+ABSTENTION_TEXT = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
+
+
+def select_failed_claims(claims: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Return the claims whose verdict requires correction."""
+    return [c for c in claims if c.get("verdict") in FAILED_VERDICTS]
+
+
+def retrieve_targeted_evidence(
+    db: Any,
+    workspace_id: Any,
+    failed_claims: List[Dict[str, Any]],
+    current_passages: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Retrieve additional passages for the first failed claims, excluding passages already held."""
+    newly_retrieved: List[Dict[str, Any]] = []
+    if db is None or workspace_id is None:
+        return newly_retrieved
+    try:
+        from app.services.retrieval.hybrid import retrieve_hybrid
+        existing_ids = {
+            str(p.get("id") or p.get("chunk_id"))
+            for p in current_passages
+            if (p.get("id") or p.get("chunk_id"))
+        }
+        for fc in failed_claims[:2]:
+            claim_query = fc.get("claim_text", "")
+            if claim_query:
+                targeted_passages = retrieve_hybrid(db, workspace_id, claim_query, top_k=2)
+                for tp in targeted_passages:
+                    tp_id = str(tp.get("id") or tp.get("chunk_id"))
+                    if tp_id and tp_id not in existing_ids:
+                        existing_ids.add(tp_id)
+                        newly_retrieved.append(tp)
+    except Exception:
+        pass
+    return newly_retrieved
+
+
+def revise_answer(
+    llm: Any,
+    query: str,
+    current_text: str,
+    failed_claims: List[Dict[str, Any]],
+    passages: List[Dict[str, Any]],
+) -> str:
+    """Ask the model to surgically revise the draft so flagged claims are fixed or removed."""
+    critiques_list = []
+    for c in failed_claims:
+        critiques_list.append(
+            f"- Problematic Claim: \"{c.get('claim_text')}\"\n"
+            f"  Audit Verdict: {c.get('verdict')}\n"
+            f"  Critique: {c.get('rationale', 'Not substantiated by evidence.')}"
+        )
+    critiques_block = "\n".join(critiques_list)
+
+    passage_texts = [
+        f"[Passage {i+1}]: {p.get('content', '')}"
+        for i, p in enumerate(passages)
+        if p.get("content", "").strip()
+    ]
+    passages_block = "\n\n".join(passage_texts)
+
+    system_prompt = (
+        "You are CiteLock's precision self-correction editor. Your job is to surgically edit the draft response "
+        "to fix or excise factual hallucinations and contradicted statements.\n"
+        "Rules:\n"
+        "1. Revise or remove ONLY the statements flagged in the critiques.\n"
+        "2. Retain statements that are already factual and supported.\n"
+        "3. Ground all replacements strictly in the provided reference passages.\n"
+        "4. Never invent new ungrounded facts or append fake disclaimers.\n"
+        "5. Return ONLY the revised answer text."
+    )
+
+    user_prompt = (
+        f"Original Draft:\n{current_text}\n\n"
+        f"Critiques:\n{critiques_block}\n\n"
+        f"Reference Evidence:\n{passages_block}\n\n"
+        f"User Query: {query}\n\n"
+        f"Revised Answer:"
+    )
+
+    try:
+        return llm.complete(user_prompt, system_prompt=system_prompt, temperature=0.0).strip()
+    except Exception as e:
+        logger.error(f"Provider failure during correction revision: {e}", exc_info=True)
+        raise
+
+
+def should_abstain(remaining_failures: List[Dict[str, Any]], claims: List[Dict[str, Any]], abstention_policy: str) -> bool:
+    """Apply the workspace abstention policy (strict vs soft) to claims that remain unresolved."""
+    if abstention_policy == "strict":
+        return len(remaining_failures) >= max(1, len(claims) // 2)
+    return len(remaining_failures) == len(claims) and len(claims) > 1
 
 
 def execute_correction_loop(
@@ -35,10 +137,7 @@ def execute_correction_loop(
     if any(c.get("verdict") == "verification_error" for c in verified_claims):
         return draft_text, 0, False, verified_claims, []
 
-    failed_claims = [
-        c for c in verified_claims
-        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
-    ]
+    failed_claims = select_failed_claims(verified_claims)
 
     # If all claims in the draft are already supported, no correction needed
     if not failed_claims:
@@ -53,80 +152,18 @@ def execute_correction_loop(
 
     for round_idx in range(1, retries_limit + 1):
         rounds_executed = round_idx
-        failed_subset = [
-            c for c in current_claims
-            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
-        ]
+        failed_subset = select_failed_claims(current_claims)
 
         if not failed_subset:
             # All claims successfully resolved
             return current_text, rounds_executed, False, current_claims, correction_history
 
         # 1. Retrieve additional evidence specifically for failed claims
-        newly_retrieved = []
-        if db is not None and workspace_id is not None:
-            try:
-                from app.services.retrieval.hybrid import retrieve_hybrid
-                existing_ids = {
-                    str(p.get("id") or p.get("chunk_id"))
-                    for p in current_passages
-                    if (p.get("id") or p.get("chunk_id"))
-                }
-                for fc in failed_subset[:2]:
-                    claim_query = fc.get("claim_text", "")
-                    if claim_query:
-                        targeted_passages = retrieve_hybrid(db, workspace_id, claim_query, top_k=2)
-                        for tp in targeted_passages:
-                            tp_id = str(tp.get("id") or tp.get("chunk_id"))
-                            if tp_id and tp_id not in existing_ids:
-                                existing_ids.add(tp_id)
-                                newly_retrieved.append(tp)
-                if newly_retrieved:
-                    current_passages.extend(newly_retrieved)
-            except Exception:
-                pass
+        newly_retrieved = retrieve_targeted_evidence(db, workspace_id, failed_subset, current_passages)
+        current_passages.extend(newly_retrieved)
 
-        # 2. Format critiques for failed claims
-        critiques_list = []
-        for c in failed_subset:
-            critiques_list.append(
-                f"- Problematic Claim: \"{c.get('claim_text')}\"\n"
-                f"  Audit Verdict: {c.get('verdict')}\n"
-                f"  Critique: {c.get('rationale', 'Not substantiated by evidence.')}"
-            )
-        critiques_block = "\n".join(critiques_list)
-
-        passage_texts = [
-            f"[Passage {i+1}]: {p.get('content', '')}"
-            for i, p in enumerate(current_passages)
-            if p.get("content", "").strip()
-        ]
-        passages_block = "\n\n".join(passage_texts)
-
-        system_prompt = (
-            "You are CiteLock's precision self-correction editor. Your job is to surgically edit the draft response "
-            "to fix or excise factual hallucinations and contradicted statements.\n"
-            "Rules:\n"
-            "1. Revise or remove ONLY the statements flagged in the critiques.\n"
-            "2. Retain statements that are already factual and supported.\n"
-            "3. Ground all replacements strictly in the provided reference passages.\n"
-            "4. Never invent new ungrounded facts or append fake disclaimers.\n"
-            "5. Return ONLY the revised answer text."
-        )
-
-        user_prompt = (
-            f"Original Draft:\n{current_text}\n\n"
-            f"Critiques:\n{critiques_block}\n\n"
-            f"Reference Evidence:\n{passages_block}\n\n"
-            f"User Query: {query}\n\n"
-            f"Revised Answer:"
-        )
-
-        try:
-            revised_text = llm.complete(user_prompt, system_prompt=system_prompt, temperature=0.0).strip()
-        except Exception as e:
-            logger.error(f"Provider failure during correction revision: {e}", exc_info=True)
-            raise
+        # 2. Critique failed claims and revise the draft
+        revised_text = revise_answer(llm, query, current_text, failed_subset, current_passages)
 
         if not revised_text:
             break
@@ -143,10 +180,7 @@ def execute_correction_loop(
         if any(c.get("verdict") == "verification_error" for c in new_verification["claims"]):
             return revised_text, rounds_executed, False, new_verification["claims"], correction_history
 
-        new_failures = [
-            c for c in new_verification["claims"]
-            if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
-        ]
+        new_failures = select_failed_claims(new_verification["claims"])
 
         attempt_record = {
             "round": round_idx,
@@ -166,22 +200,10 @@ def execute_correction_loop(
         if not new_failures:
             return current_text, rounds_executed, False, current_claims, correction_history
 
-    # 5. If verification still fails after max retries:
-    remaining_failures = [
-        c for c in current_claims
-        if c.get("verdict") in ["unsupported", "contradicted", "insufficient_evidence", "partially_supported"]
-    ]
-
-    # Evaluate abstention based on configured workspace policy: strict vs soft
-    if abstention_policy == "strict":
-        if len(remaining_failures) >= max(1, len(current_claims) // 2):
-            abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
-            return abstention_text, rounds_executed, True, current_claims, correction_history
-    else:
-        # Soft warning policy: only abstain if every single claim fails
-        if len(remaining_failures) == len(current_claims) and len(current_claims) > 1:
-            abstention_text = "The provided reference documents do not contain sufficient evidence to confirm the stated claims."
-            return abstention_text, rounds_executed, True, current_claims, correction_history
+    # 5. If verification still fails after max retries, apply the workspace abstention policy
+    remaining_failures = select_failed_claims(current_claims)
+    if should_abstain(remaining_failures, current_claims, abstention_policy):
+        return ABSTENTION_TEXT, rounds_executed, True, current_claims, correction_history
 
     # Otherwise return revised text while preserving the actual unresolved verdicts (never claiming false success)
     return current_text, rounds_executed, False, current_claims, correction_history
