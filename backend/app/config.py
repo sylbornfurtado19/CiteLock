@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     gemini_llm_model: str = "gemini-3.8-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
 
+    groq_llm_model: str = "llama-3.3-70b-versatile"
+
     max_correction_retries: int = 2
     max_verification_workers: int = 5
     http_connect_timeout: float = 5.0
@@ -64,9 +66,10 @@ class Settings(BaseSettings):
     def validate_providers_and_keys(self) -> "Settings":
         allowed_providers = {"openai", "gemini", "mock"}
 
-        if self.llm_provider.lower() not in allowed_providers:
+        allowed_llm_providers = allowed_providers | {"groq"}
+        if self.llm_provider.lower() not in allowed_llm_providers:
             raise ValueError(
-                f"Unknown LLM provider '{self.llm_provider}'. Allowed providers are: {', '.join(sorted(allowed_providers))}."
+                f"Unknown LLM provider '{self.llm_provider}'. Allowed providers are: {', '.join(sorted(allowed_llm_providers))}."
             )
 
         if self.embedding_provider.lower() not in allowed_providers:
@@ -85,6 +88,10 @@ class Settings(BaseSettings):
             if self.llm_provider.lower() == "gemini" and is_missing(self.llm_api_key):
                 raise ValueError(
                     "LLM_API_KEY is required for Gemini provider in production and cannot be empty or a placeholder."
+                )
+            if self.llm_provider.lower() == "groq" and is_missing(self.llm_api_key):
+                raise ValueError(
+                    "LLM_API_KEY is required for Groq provider in production and cannot be empty or a placeholder."
                 )
             if self.embedding_provider.lower() == "gemini" and is_missing(self.embedding_api_key):
                 raise ValueError(

@@ -213,6 +213,9 @@ def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
     if provider == "openai":
         from app.providers.openai_adapter import OpenAIProvider
         return OpenAIProvider()
+    if provider == "groq":
+        from app.providers.groq_adapter import GroqProvider
+        return GroqProvider()
     raise ValueError(f"Unknown LLM provider: {provider}")
 
 
@@ -239,6 +242,10 @@ def get_available_llm_providers() -> List[str]:
         providers.append("gemini")
     elif settings.llm_provider == "gemini" and settings.llm_api_key and "placeholder" not in settings.llm_api_key.lower():
         providers.append("gemini")
+
+    # Groq is available when it is the configured LLM provider with a real key
+    if settings.llm_provider == "groq" and settings.llm_api_key and "placeholder" not in settings.llm_api_key.lower():
+        providers.append("groq")
 
     # Always ensure active default provider is present
     if not providers:
