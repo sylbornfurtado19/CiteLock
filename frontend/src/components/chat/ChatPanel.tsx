@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Send, Bot, Sparkles, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnswerWithCitations } from "./AnswerWithCitations";
@@ -9,6 +10,7 @@ import { Answer } from "@/types";
 import { PipelineEvent, PipelineStage } from "@/types/pipeline";
 import { streamPipelineQuery } from "@/lib/stream";
 import { notify } from "@/components/ui/toast";
+import { queryKeys } from "@/lib/query";
 
 interface Message {
   id: string;
@@ -18,6 +20,7 @@ interface Message {
 }
 
 export function ChatPanel({ workspaceId }: { workspaceId: string }) {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "initial",
@@ -90,6 +93,16 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           answer: response.answer,
         },
       ]);
+
+      // Invalidate analytics and audits cache so dashboard and audit feed show fresh metrics
+      if (workspaceId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.analytics.all(workspaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.audits.all(workspaceId),
+        });
+      }
     } catch (err: unknown) {
       console.error("Pipeline streaming error:", err);
       setIsStreamFailed(true);

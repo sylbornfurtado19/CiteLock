@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VerdictDistributionChart } from "@/components/dashboard/VerdictDistributionChart";
@@ -21,63 +21,48 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api";
 import { SkeletonKpi, SkeletonChart, SkeletonCard } from "@/components/ui/skeleton";
-import { AnalyticsSummary } from "@/types";
 import { useWorkspace } from "@/lib/workspace";
 import { notify } from "@/components/ui/toast";
+import { useWorkspaceAnalytics } from "@/lib/query";
 
 export default function DashboardPage() {
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
   const workspaceId = currentWorkspace?.id;
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Time-range filter state
   const [selectedRange, setSelectedRange] = useState<string>("24h");
+
+  // Server-state caching via TanStack Query (30s stale time, background revalidation)
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    isFetching,
+    error: queryError,
+    refetch,
+  } = useWorkspaceAnalytics(workspaceId, selectedRange);
+
+  // Initial loading only when no cached data is present
+  const isInitialLoading = (workspaceLoading || analyticsLoading) && !analytics;
+  const isSyncing = isFetching;
+  const error = queryError ? "Unable to load real-time analytics. Verify backend connection." : null;
 
   // Export report states
   const [exportingReport, setExportingReport] = useState(false);
   const [exportedSuccess, setExportedSuccess] = useState(false);
 
-  const fetchAnalytics = useCallback(async (rangeOverride?: string, isManual = false) => {
-    if (!workspaceId) {
-      setLoading(false);
-      return;
-    }
+  const handleRefresh = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await apiFetch<AnalyticsSummary>(
-        `/api/v1/workspaces/${workspaceId}/analytics${(rangeOverride || selectedRange).toLowerCase() !== "all" ? `?range=${(rangeOverride || selectedRange).toLowerCase()}` : ""}`
-      );
-      setAnalytics(data);
-      if (isManual || rangeOverride) {
-        notify.info("Telemetry Metrics Synchronized", {
-          description: `Updated metrics across active ${(rangeOverride || selectedRange).toUpperCase()} window.`,
-          duration: 3000,
-        });
-      }
+      await refetch();
+      notify.info("Telemetry Metrics Synchronized", {
+        description: `Updated metrics across active ${selectedRange.toUpperCase()} window.`,
+        duration: 3000,
+      });
     } catch (err: unknown) {
       console.error("Failed to load analytics:", err);
-      setError("Unable to load real-time analytics. Verify backend connection.");
-      if (isManual || rangeOverride) {
-        notify.error("Telemetry Sync Failed", err);
-      }
-    } finally {
-      setLoading(false);
+      notify.error("Telemetry Sync Failed", err);
     }
-  }, [workspaceId, selectedRange]);
-
-  useEffect(() => {
-    if (workspaceId) {
-      fetchAnalytics();
-    } else if (!workspaceLoading) {
-      setLoading(false);
-      setAnalytics(null);
-    }
-  }, [workspaceId, workspaceLoading, fetchAnalytics]);
+  };
 
   const totalClaims = analytics?.verdict_distribution
     ? Object.values(analytics.verdict_distribution).reduce((a, b) => a + b, 0)
@@ -174,8 +159,8 @@ export default function DashboardPage() {
         spotlightColor="rgba(168, 85, 247, 0.12)"
         borderSpotlightColor="rgba(216, 180, 254, 0.35)"
       >
-        {/* Sweeping Radar-Line Animation Active During Refresh */}
-        {loading && (
+        {/* Sweeping Radar-Line Animation Active During Background Sync */}
+        {isSyncing && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
             {/* Top scanning laser edge */}
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent shadow-[0_0_18px_rgba(216,180,254,0.95)] animate-radar-sweep" />
@@ -199,7 +184,7 @@ export default function DashboardPage() {
                 <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/35 bg-purple-950/60 px-2.5 py-0.5 text-xs text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.2)]">
                   <svg
                     className={`h-3 w-7 ${
-                      loading
+                      isSyncing
                         ? "text-purple-300 animate-oscilloscope-fast"
                         : "text-purple-400/80 animate-oscilloscope"
                     }`}
@@ -217,7 +202,7 @@ export default function DashboardPage() {
                     />
                   </svg>
                   <span className="font-mono text-[11px] font-medium tracking-tight">
-                    {loading ? "Sweeping Audit..." : "Grounding Active"}
+                    {isSyncing ? "Sweeping Audit..." : "Grounding Active"}
                   </span>
                 </div>
               </div>
@@ -234,10 +219,7 @@ export default function DashboardPage() {
               {["1h", "24h", "7d", "30d", "All"].map((range) => (
                 <button
                   key={range}
-                  onClick={() => {
-                    setSelectedRange(range);
-                    fetchAnalytics(range);
-                  }}
+                  onClick={() => setSelectedRange(range)}
                   className={`px-2.5 py-1 text-xs rounded-lg font-mono transition-all duration-150 ${
                     selectedRange === range
                       ? "bg-purple-950/90 text-purple-200 border border-purple-500/40 shadow-[0_0_10px_rgba(139,92,246,0.25)] font-semibold"
@@ -253,18 +235,18 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchAnalytics(undefined, true)}
-              disabled={loading}
+              onClick={handleRefresh}
+              disabled={isSyncing}
               className="text-xs self-start sm:self-auto gap-2 border-purple-500/30 bg-[#140D24] hover:bg-[#1A1130] hover:border-purple-400/50 hover:text-white transition-all duration-150 active:scale-95 shadow-sm group"
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 text-purple-300 ${
-                  loading
+                  isSyncing
                     ? "animate-spin text-purple-400"
                     : "group-hover:rotate-45 transition-transform duration-200"
                 }`}
               />
-              <span>{loading ? "Sweeping Audit..." : "Refresh Metrics"}</span>
+              <span>{isSyncing ? "Sweeping Audit..." : "Refresh Metrics"}</span>
             </Button>
           </div>
         </div>
@@ -344,7 +326,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {loading && !analytics ? (
+        {isInitialLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SkeletonKpi isHero={true} />
             <SkeletonKpi />
@@ -390,7 +372,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts & Interactive Operational Pipeline Node Flow (DAG) */}
-      {loading && !analytics ? (
+      {isInitialLoading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 animate-fade-in-up">
           <div className="lg:col-span-2">
             <SkeletonChart />

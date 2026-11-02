@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import { CardTitle } from "@/components/ui/card";
@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SkeletonTableRow } from "@/components/ui/skeleton";
-import { apiFetch } from "@/lib/api";
 import { AuditListItem } from "@/types";
+import { useWorkspaceAudits } from "@/lib/query";
 
 function formatTimeAgo(isoString: string): string {
   try {
@@ -70,45 +70,15 @@ export function RecentAuditsFeed({
   totalQueries?: number;
   className?: string;
 }) {
-  const [audits, setAudits] = useState<AuditListItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadAudits() {
-      if (!workspaceId) {
-        if (isMounted) {
-          setAudits([]);
-          setLoading(false);
-        }
-        return;
-      }
-      try {
-        setLoading(true);
-        const data = await apiFetch<AuditListItem[]>(
-          `/api/v1/workspaces/${workspaceId}/audits`
-        );
-        if (isMounted) {
-          setAudits(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        console.error("Failed to load audits:", err);
-        if (isMounted) {
-          setAudits([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    }
-    loadAudits();
-    return () => {
-      isMounted = false;
-    };
-  }, [workspaceId]);
+  // Server-state cached queries via TanStack Query (30s stale time, background revalidation)
+  const {
+    data: audits = [],
+    isLoading,
+    isFetching,
+  } = useWorkspaceAudits(workspaceId, 10);
 
   const hasAudits = audits.length > 0;
+  const isInitialLoading = isLoading && !hasAudits;
 
   return (
     <SpotlightCard
@@ -134,7 +104,13 @@ export function RecentAuditsFeed({
 
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs px-2.5 py-1 bg-purple-950/60 border border-purple-500/25 rounded-lg text-purple-300">
-            {loading ? "Syncing..." : hasAudits ? `${audits.length} Recent Streams` : "0 Audits"}
+            {isInitialLoading
+              ? "Loading..."
+              : isFetching
+              ? "Syncing..."
+              : hasAudits
+              ? `${audits.length} Recent Streams`
+              : "0 Audits"}
           </span>
           <Link href="/chat">
             <Button
@@ -150,7 +126,7 @@ export function RecentAuditsFeed({
       </div>
 
       {/* Feed Content */}
-      {loading && audits.length === 0 ? (
+      {isInitialLoading ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

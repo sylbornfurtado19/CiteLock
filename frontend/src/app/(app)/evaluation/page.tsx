@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import {
   FlaskConical,
   Play,
@@ -23,57 +23,43 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import { notify, sanitizeErrorMessage } from "@/components/ui/toast";
 import { useWorkspace } from "@/lib/workspace/WorkspaceContext";
-import { apiFetch, ApiError } from "@/lib/api";
 import {
   BenchmarkRunResponse,
   BenchmarkHistoryItem,
   SystemBenchmarkMetrics,
 } from "@/types";
+import {
+  useWorkspaceEvaluationLatest,
+  useWorkspaceEvaluationHistory,
+  useRunEvaluationMutation,
+} from "@/lib/query";
 
 export default function EvaluationPage() {
   const { currentWorkspace, isLoading: wsLoading } = useWorkspace();
+  const workspaceId = currentWorkspace?.id || "";
 
-  const [latestRun, setLatestRun] = useState<BenchmarkRunResponse | null>(null);
-  const [history, setHistory] = useState<BenchmarkHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
   const [sampleSize, setSampleSize] = useState<number>(5);
 
-  // Fetch latest benchmark and history
-  const fetchBenchmarkData = useCallback(async () => {
-    if (!currentWorkspace) return;
-    setLoading(true);
+  // TanStack Query: Server-state caching, background revalidation
+  const {
+    data: latestRun,
+    isLoading: latestLoading,
+  } = useWorkspaceEvaluationLatest(workspaceId);
 
-    try {
-      const [latestRes, historyRes] = await Promise.all([
-        apiFetch<BenchmarkRunResponse | null>(
-          `/api/v1/workspaces/${currentWorkspace.id}/evaluation/latest`
-        ),
-        apiFetch<BenchmarkHistoryItem[]>(
-          `/api/v1/workspaces/${currentWorkspace.id}/evaluation/history`
-        ),
-      ]);
+  const {
+    data: history = [],
+    isLoading: historyLoading,
+  } = useWorkspaceEvaluationHistory(workspaceId);
 
-      setLatestRun(latestRes);
-      setHistory(historyRes || []);
-    } catch (err) {
-      console.warn("Failed to fetch evaluation benchmark data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentWorkspace]);
+  const runMutation = useRunEvaluationMutation(workspaceId);
 
-  useEffect(() => {
-    if (currentWorkspace?.id) {
-      fetchBenchmarkData();
-    }
-  }, [currentWorkspace?.id, fetchBenchmarkData]);
+  const running = runMutation.isPending;
+  const loading = (wsLoading || latestLoading || historyLoading) && !latestRun && history.length === 0;
 
   // Execute benchmark run
   const handleRunBenchmarks = async () => {
-    if (!currentWorkspace) return;
+    if (!workspaceId) return;
 
-    setRunning(true);
     const toastId = "benchmark-run";
     notify.loading("Executing Multi-System Evaluation...", {
       id: toastId,
@@ -81,25 +67,7 @@ export default function EvaluationPage() {
     });
 
     try {
-      const result = await apiFetch<BenchmarkRunResponse>(
-        `/api/v1/workspaces/${currentWorkspace.id}/evaluation/run`,
-        {
-          method: "POST",
-          body: JSON.stringify({ sample_size: sampleSize }),
-        }
-      );
-
-      setLatestRun(result);
-
-      // Refresh history
-      try {
-        const hist = await apiFetch<BenchmarkHistoryItem[]>(
-          `/api/v1/workspaces/${currentWorkspace.id}/evaluation/history`
-        );
-        setHistory(hist || []);
-      } catch {
-        // history refresh soft fail
-      }
+      const result = await runMutation.mutateAsync({ sampleSize });
 
       notify.success("Benchmark Evaluation Complete", {
         id: toastId,
@@ -110,8 +78,6 @@ export default function EvaluationPage() {
     } catch (err) {
       const msg = sanitizeErrorMessage(err);
       notify.error("Benchmark Execution Failed", msg, { id: toastId });
-    } finally {
-      setRunning(false);
     }
   };
 

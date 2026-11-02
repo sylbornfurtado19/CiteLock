@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Shield,
   Database,
@@ -10,7 +10,6 @@ import {
   Save,
   Wifi,
   RotateCcw,
-  Sliders,
   Cpu,
   Server,
   Layers,
@@ -21,18 +20,29 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { notify, sanitizeErrorMessage } from "@/components/ui/toast";
 import { useWorkspace } from "@/lib/workspace/WorkspaceContext";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { ConnectivityTestResponse } from "@/types";
 import {
-  WorkspaceSettings,
-  ConnectivityTestResponse,
-} from "@/types";
+  useWorkspaceSettings,
+  useUpdateSettingsMutation,
+  useResetSettingsMutation,
+} from "@/lib/query";
 
 export default function SettingsPage() {
   const { currentWorkspace, isLoading: wsLoading } = useWorkspace();
+  const workspaceId = currentWorkspace?.id || "";
 
-  const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  // Server-state cached query (30s stale time, background revalidation)
+  const {
+    data: settings,
+    isLoading: settingsLoading,
+    isFetching,
+    error: queryError,
+    refetch: refetchSettings,
+  } = useWorkspaceSettings(workspaceId);
+
+  const updateMutation = useUpdateSettingsMutation(workspaceId);
+  const resetMutation = useResetSettingsMutation(workspaceId);
 
   // Form state
   const [topK, setTopK] = useState<number>(5);
@@ -42,39 +52,17 @@ export default function SettingsPage() {
 
   // Action states
   const [testingConnection, setTestingConnection] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [resettingSettings, setResettingSettings] = useState(false);
   const [connectivityResult, setConnectivityResult] = useState<ConnectivityTestResponse | null>(null);
 
-  // Fetch settings for current workspace
-  const fetchSettings = useCallback(async () => {
-    if (!currentWorkspace) return;
-    setLoading(true);
-    setFetchError(null);
-
-    try {
-      const data = await apiFetch<WorkspaceSettings>(
-        `/api/v1/workspaces/${currentWorkspace.id}/settings`
-      );
-      setSettings(data);
-      setTopK(data.retrieval_top_k);
-      setMaxRetries(data.max_correction_retries);
-      setAbstentionPolicy(data.abstention_policy);
-      setPreferredProvider(data.preferred_llm_provider || "");
-    } catch (err) {
-      const message = sanitizeErrorMessage(err);
-      setFetchError(message);
-      notify.error("Failed to load settings", message);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentWorkspace]);
-
+  // Synchronize local form inputs when server data loads or updates
   useEffect(() => {
-    if (currentWorkspace?.id) {
-      fetchSettings();
+    if (settings) {
+      setTopK(settings.retrieval_top_k);
+      setMaxRetries(settings.max_correction_retries);
+      setAbstentionPolicy(settings.abstention_policy);
+      setPreferredProvider(settings.preferred_llm_provider || "");
     }
-  }, [currentWorkspace?.id, fetchSettings]);
+  }, [settings]);
 
   // Check if form has unsaved modifications
   const hasChanges = useMemo(() => {
@@ -90,34 +78,21 @@ export default function SettingsPage() {
   // Handle Save Settings
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentWorkspace) return;
+    if (!workspaceId) return;
 
     const toastId = "save-workspace-settings";
-    setSavingSettings(true);
     notify.loading("Saving Workspace Settings...", {
       id: toastId,
-      description: `Persisting parameters for ${currentWorkspace.name}...`,
+      description: `Persisting parameters for ${currentWorkspace?.name || "workspace"}...`,
     });
 
     try {
-      const updated = await apiFetch<WorkspaceSettings>(
-        `/api/v1/workspaces/${currentWorkspace.id}/settings`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            retrieval_top_k: topK,
-            max_correction_retries: maxRetries,
-            abstention_policy: abstentionPolicy,
-            preferred_llm_provider: preferredProvider ? preferredProvider : null,
-          }),
-        }
-      );
-
-      setSettings(updated);
-      setTopK(updated.retrieval_top_k);
-      setMaxRetries(updated.max_correction_retries);
-      setAbstentionPolicy(updated.abstention_policy);
-      setPreferredProvider(updated.preferred_llm_provider || "");
+      await updateMutation.mutateAsync({
+        retrieval_top_k: topK,
+        max_correction_retries: maxRetries,
+        abstention_policy: abstentionPolicy,
+        preferred_llm_provider: preferredProvider ? preferredProvider : null,
+      });
 
       notify.success("Configuration Saved", {
         id: toastId,
@@ -128,36 +103,21 @@ export default function SettingsPage() {
     } catch (err) {
       const errorMsg = sanitizeErrorMessage(err);
       notify.error("Failed to Save Settings", errorMsg, { id: toastId });
-    } finally {
-      setSavingSettings(false);
     }
   };
 
   // Handle Reset to Defaults
   const handleResetSettings = async () => {
-    if (!currentWorkspace) return;
+    if (!workspaceId) return;
 
     const toastId = "reset-workspace-settings";
-    setResettingSettings(true);
     notify.loading("Resetting Workspace Parameters...", {
       id: toastId,
       description: "Restoring system architectural defaults...",
     });
 
     try {
-      const resetData = await apiFetch<WorkspaceSettings>(
-        `/api/v1/workspaces/${currentWorkspace.id}/settings/reset`,
-        {
-          method: "POST",
-        }
-      );
-
-      setSettings(resetData);
-      setTopK(resetData.retrieval_top_k);
-      setMaxRetries(resetData.max_correction_retries);
-      setAbstentionPolicy(resetData.abstention_policy);
-      setPreferredProvider(resetData.preferred_llm_provider || "");
-
+      await resetMutation.mutateAsync();
       notify.success("Settings Restored", {
         id: toastId,
         description: "Auditor parameters restored to system default benchmarks.",
@@ -165,14 +125,12 @@ export default function SettingsPage() {
     } catch (err) {
       const errorMsg = sanitizeErrorMessage(err);
       notify.error("Failed to Reset Settings", errorMsg, { id: toastId });
-    } finally {
-      setResettingSettings(false);
     }
   };
 
   // Handle Test Connectivity
   const handleTestConnection = async () => {
-    if (!currentWorkspace) return;
+    if (!workspaceId) return;
 
     const toastId = "test-connections";
     setTestingConnection(true);
@@ -183,7 +141,7 @@ export default function SettingsPage() {
 
     try {
       const result = await apiFetch<ConnectivityTestResponse>(
-        `/api/v1/workspaces/${currentWorkspace.id}/settings/test-connection`,
+        `/api/v1/workspaces/${workspaceId}/settings/test-connection`,
         {
           method: "POST",
         }
@@ -210,7 +168,9 @@ export default function SettingsPage() {
     }
   };
 
-  if (wsLoading || (loading && !settings)) {
+  const isInitialLoading = (wsLoading || settingsLoading) && !settings;
+
+  if (isInitialLoading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto pb-12">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -230,7 +190,8 @@ export default function SettingsPage() {
     );
   }
 
-  if (fetchError && !settings) {
+  if (queryError && !settings) {
+    const fetchError = sanitizeErrorMessage(queryError);
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
         <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/30 inline-block text-rose-300 mb-4">
@@ -239,7 +200,7 @@ export default function SettingsPage() {
         <h2 className="text-xl font-bold text-white mb-2">Unable to Load Settings</h2>
         <p className="text-sm text-[#B0A4C3] max-w-md mx-auto mb-6">{fetchError}</p>
         <Button
-          onClick={fetchSettings}
+          onClick={() => refetchSettings()}
           className="bg-purple-600 hover:bg-purple-500 text-white gap-2 text-xs"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -251,6 +212,8 @@ export default function SettingsPage() {
 
   const availableProviders = settings?.available_llm_providers || ["openai"];
   const deploymentInfo = settings?.deployment_info;
+  const isSaving = updateMutation.isPending;
+  const isResetting = resetMutation.isPending;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-12">
@@ -276,7 +239,7 @@ export default function SettingsPage() {
             variant="outline"
             size="sm"
             onClick={handleTestConnection}
-            disabled={testingConnection || savingSettings || resettingSettings}
+            disabled={testingConnection || isSaving || isResetting}
             className="text-xs gap-1.5 border-purple-500/30 bg-[#120B20] hover:bg-[#1A102E] text-purple-200"
           >
             {testingConnection ? (
@@ -292,10 +255,10 @@ export default function SettingsPage() {
             variant="outline"
             size="sm"
             onClick={handleResetSettings}
-            disabled={resettingSettings || savingSettings || testingConnection}
+            disabled={isResetting || isSaving || testingConnection}
             className="text-xs gap-1.5 border-purple-900/40 bg-[#100A1C] hover:bg-[#1A102E] text-[#B0A4C3] hover:text-[#F5F0FF]"
           >
-            {resettingSettings ? (
+            {isResetting ? (
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <RotateCcw className="h-3.5 w-3.5" />
@@ -307,14 +270,14 @@ export default function SettingsPage() {
             type="button"
             size="sm"
             onClick={handleSaveSettings}
-            disabled={!hasChanges || savingSettings || testingConnection || resettingSettings}
+            disabled={!hasChanges || isSaving || testingConnection || isResetting}
             className={`text-xs gap-1.5 text-white transition-all duration-200 ${
               hasChanges
                 ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-[0_0_16px_rgba(147,51,234,0.35)]"
                 : "bg-purple-950/50 text-[#8D829F] border border-purple-900/30 cursor-not-allowed"
             }`}
           >
-            {savingSettings ? (
+            {isSaving ? (
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Save className="h-3.5 w-3.5" />

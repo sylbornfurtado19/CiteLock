@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClaimCard } from "@/components/claims/ClaimCard";
 import { CorrectionTimeline } from "@/components/claims/CorrectionTimeline";
-import { AnswerAudit } from "@/types";
 import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { Skeleton, SkeletonText, SkeletonCard, SkeletonClaimCard } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
+import { useWorkspaceAuditDetail } from "@/lib/query";
 
 export default function AuditDetailPage() {
   const params = useParams();
@@ -19,43 +19,21 @@ export default function AuditDetailPage() {
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
   const workspaceId = currentWorkspace?.id || "";
 
-  const [auditData, setAuditData] = useState<AnswerAudit | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Server-state cached query (30s stale time, background revalidation)
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    error: queryError,
+  } = useWorkspaceAuditDetail(workspaceId, answerId);
+
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    if (!answerId || !workspaceId) {
-      if (!workspaceLoading) setLoading(false);
-      return;
-    }
-
-    const fetchAudit = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await apiFetch<AnswerAudit>(
-          `/api/v1/workspaces/${workspaceId}/audits/${answerId}`
-        );
-        setAuditData(data);
-      } catch (err: unknown) {
-        console.error("Failed to load audit:", err);
-        const fallbackMsg = "Audit record not found or inaccessible for this answer.";
-        setError(fallbackMsg);
-        notify.error("Audit Inaccessible", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAudit();
-  }, [answerId, workspaceId, workspaceLoading]);
+  const loading = (workspaceLoading || auditLoading) && !auditData;
+  const error = queryError ? "Audit record not found or inaccessible for this answer." : null;
 
   const handleExport = async () => {
-    if (!answerId || !workspaceId) {
-      if (!workspaceLoading) setLoading(false);
-      return;
-    }
+    if (!answerId || !workspaceId) return;
+
     const toastId = `export-audit-${answerId}`;
     try {
       setExporting(true);
