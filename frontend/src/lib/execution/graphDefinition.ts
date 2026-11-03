@@ -33,8 +33,9 @@ export const GRAPH_NODES: GraphNodeDef[] = [
   { id: "re_verification", label: "Re-verification", subtitle: "Audit the revised answer", kind: "step", position: { x: COL_CORRECTION, y: 820 } },
   { id: "abstention", label: "Insufficient Evidence", subtitle: "Abstain per workspace policy", kind: "branch", position: { x: COL_BRANCH, y: 820 } },
   { id: "error_handler", label: "Failed", subtitle: "Provider or verification error", kind: "terminal", position: { x: COL_BRANCH, y: 660 } },
-  { id: "final_answer_generation", label: "Finalization", subtitle: "Assemble final answer and status", kind: "step", position: { x: COL_SPINE, y: 980 } },
-  { id: "database_persistence", label: "Final Answer", subtitle: "Persist audit trail and deliver", kind: "terminal", position: { x: COL_SPINE, y: 1110 } },
+  { id: "final_answer_generation", label: "Final Answer", subtitle: "Assemble answer and status", kind: "step", position: { x: COL_SPINE, y: 980 } },
+  // Completes only after the database commit succeeds, so "Finalization" is never shown before persistence.
+  { id: "database_persistence", label: "Finalization", subtitle: "Persist and commit audit trail", kind: "terminal", position: { x: COL_SPINE, y: 1110 } },
 ];
 
 export const NODE_BY_ID: Record<GraphNodeId, GraphNodeDef> = Object.fromEntries(

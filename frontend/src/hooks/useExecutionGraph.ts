@@ -20,6 +20,7 @@ export function useExecutionGraph() {
   const actions = useMemo(
     () => ({
       reset: () => apply({ type: "reset" }),
+      onStarted: () => apply({ type: "stream_started" }),
       onGraphEvent: (event: GraphEvent) => apply({ type: "graph_event", event }),
       onComplete: () => apply({ type: "stream_complete" }),
       onFailed: (message: string) => apply({ type: "stream_failed", message }),

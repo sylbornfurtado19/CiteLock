@@ -5,7 +5,9 @@ self-correction, re-verification, finalization and persistence) runs as a LangGr
 app.pipeline.graph with node implementations in app.pipeline.nodes.
 """
 
+import itertools
 import logging
+import threading
 import time
 from typing import Dict, Any, Callable, Optional
 from uuid import UUID
@@ -33,6 +35,7 @@ def run_pipeline(
     top_k: int = 5,
     on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
     use_cache: bool = True,
+    cancel_event: Optional[threading.Event] = None,
 ) -> Dict[str, Any]:
     """
     Execute complete audited RAG pipeline with deterministic response caching and concurrency coordination:
@@ -61,11 +64,16 @@ def run_pipeline(
             except Exception as evt_err:
                 logger.warning("Error invoking on_event callback: %s", evt_err)
 
+    graph_seq = itertools.count(1)
+
     def emit_graph(event: Dict[str, Any]):
-        """Forward a real LangGraph node lifecycle event (kind="graph") to the streaming listener."""
+        """Forward a real LangGraph node lifecycle event (kind="graph") to the streaming listener.
+
+        Every event carries a per-run sequence number so clients can drop duplicates and detect gaps.
+        """
         if on_event:
             try:
-                on_event({**event, "kind": "graph"})
+                on_event({**event, "kind": "graph", "seq": next(graph_seq)})
             except Exception as evt_err:
                 logger.warning("Error invoking on_event callback for graph event: %s", evt_err)
 
@@ -153,6 +161,7 @@ def run_pipeline(
             emit=emit,
             emit_graph=emit_graph,
             start_time=start_time,
+            cancel_event=cancel_event,
         )
 
     # Concurrency control: prevent cache stampedes for simultaneous identical requests
@@ -209,11 +218,22 @@ def _run_pipeline_execution(
     emit: Callable,
     start_time: float,
     emit_graph: Optional[Callable] = None,
+    cancel_event: Optional[threading.Event] = None,
 ) -> Dict[str, Any]:
     """Execute the audited pipeline through the compiled LangGraph StateGraph (see app.pipeline.graph)."""
+    timeout_seconds = get_settings().pipeline_timeout_seconds
     final_state = run_graph(
         {"prompt": prompt, "workspace_id": workspace_id, "top_k": top_k, "trace": [], "node_events": []},
-        {"db": db, "emit": emit, "emit_graph": emit_graph, "ws_settings": ws_settings, "start_time": start_time},
+        {
+            "db": db,
+            "emit": emit,
+            "emit_graph": emit_graph,
+            "ws_settings": ws_settings,
+            "start_time": start_time,
+            "cancelled": cancel_event,
+            "deadline": start_time + timeout_seconds,
+            "timeout_seconds": timeout_seconds,
+        },
     )
 
     error_exc = final_state.get("error_exception")

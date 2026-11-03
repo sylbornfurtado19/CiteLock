@@ -7,7 +7,7 @@ Topology::
 
     correct:  self_correction -> re_verification --(conditional)--> correct / finalize / abstain / error
     abstain:  abstention -> final_answer_generation
-    finalize: final_answer_generation -> database_persistence -> END
+    finalize: final_answer_generation -> database_persistence --(conditional)--> END / error_handler
     error:    error_handler -> END
 
 Every working node also branches to ``error_handler`` when it records an error in the shared state.
@@ -92,7 +92,12 @@ def build_pipeline_graph() -> StateGraph:
         _next_or_error("database_persistence"),
         {"database_persistence": "database_persistence", NODE_ERROR: NODE_ERROR},
     )
-    graph.add_edge("database_persistence", END)
+    # A failed commit is still a failure worth recording, so it goes through the error handler like any other.
+    graph.add_conditional_edges(
+        "database_persistence",
+        lambda state: NODE_ERROR if state.get("error") else END,
+        {NODE_ERROR: NODE_ERROR, END: END},
+    )
     graph.add_edge(NODE_ERROR, END)
     return graph
 

@@ -1,413 +1,422 @@
 {
   "scenario": "verified",
-  "events": [
-    {
-      "event": "node_start",
-      "node": "query_input",
-      "from_node": null,
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.880504Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "query_input",
-      "from_node": null,
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "prompt": "fixture verified",
-        "top_k": 3,
-        "max_correction_rounds": 2,
-        "abstention_policy": "strict"
-      },
-      "timestamp": "2026-11-02T19:28:24.880504Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "evidence_retrieval",
-      "from_node": "query_input",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.881062Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "evidence_retrieval",
-      "from_node": "query_input",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "passages_count": 1,
-        "passages": [
-          {
-            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
-            "document": "titan.txt",
-            "chunk_index": null,
-            "relevance": null,
-            "snippet": "Titan uses mTLS."
-          }
-        ]
-      },
-      "timestamp": "2026-11-02T19:28:24.881062Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "answer_generation",
-      "from_node": "evidence_retrieval",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.882200Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "answer_generation",
-      "from_node": "evidence_retrieval",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "draft_answer": "Draft answer.",
-        "provider": "mock",
-        "model": null,
-        "passages_used": 1
-      },
-      "timestamp": "2026-11-02T19:28:24.882200Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "claim_decomposition",
-      "from_node": "answer_generation",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.882785Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "claim_decomposition",
-      "from_node": "answer_generation",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "claim_count": 1,
-        "claims": [
-          {
-            "index": 0,
-            "text": "Titan uses mTLS.",
-            "category": null
-          }
-        ]
-      },
-      "timestamp": "2026-11-02T19:28:24.882785Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "claim_verification",
-      "from_node": "claim_decomposition",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.883339Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "claim_verification",
-      "from_node": "claim_decomposition",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "claims": [
-          {
-            "index": 0,
-            "text": "Titan uses mTLS.",
-            "category": null,
-            "verdict": "supported",
-            "confidence": 0.9,
-            "rationale": "Judged supported.",
-            "evidence": []
-          }
-        ],
-        "metrics": {
-          "hallucination_rate": 0.0,
-          "grounding_rate": 1.0,
-          "total_claims": 1,
-          "verdict_distribution": {
-            "supported": 1,
-            "partially_supported": 0,
-            "contradicted": 0,
-            "unsupported": 0,
-            "insufficient_evidence": 0,
-            "verification_error": 0,
-            "unknown": 0
-          }
-        },
-        "verification_errors": 0
-      },
-      "timestamp": "2026-11-02T19:28:24.883339Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "verification_router",
-      "from_node": "claim_verification",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.883927Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "verification_router",
-      "from_node": "claim_verification",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "route": "finalize",
-        "reason": "All claims are supported by the retrieved evidence.",
-        "failed_claims": 0,
-        "round": 0
-      },
-      "route": "finalize",
-      "to_node": "final_answer_generation",
-      "timestamp": "2026-11-02T19:28:24.883927Z",
-      "kind": "graph"
-    },
-    {
-      "event": "route_decision",
-      "node": "verification_router",
-      "route": "finalize",
-      "to_node": "final_answer_generation",
-      "reason": "All claims are supported by the retrieved evidence.",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.883927Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "final_answer_generation",
-      "from_node": "verification_router",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.883927Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "final_answer_generation",
-      "from_node": "verification_router",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "final_text": "Draft answer.",
-        "verification_status": "verified",
-        "is_abstained": false,
-        "correction_rounds": 0,
-        "execution_metadata": {
-          "latency_ms": 29,
+  "sse": "event: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"query_input\", \"from_node\": null, \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.317955Z\", \"kind\": \"graph\", \"seq\": 1}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"query_input\", \"from_node\": null, \"round\": 0, \"duration_ms\": 0, \"data\": {\"prompt\": \"fixture verified\", \"top_k\": 3, \"max_correction_rounds\": 2, \"abstention_policy\": \"strict\"}, \"timestamp\": \"2026-11-02T20:18:50.318623Z\", \"kind\": \"graph\", \"seq\": 2}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"evidence_retrieval\", \"from_node\": \"query_input\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.318623Z\", \"kind\": \"graph\", \"seq\": 3}\n\nevent: pipeline_event\ndata: {\"stage\": \"retrieval\", \"status\": \"running\", \"message\": \"Retrieving relevant reference passages from vector and keyword index...\", \"timestamp\": \"2026-11-02T20:18:50.318623Z\", \"data\": {\"top_k\": 3}}\n\nevent: pipeline_event\ndata: {\"stage\": \"retrieval\", \"status\": \"completed\", \"message\": \"Retrieved 1 reference passage(s) across dense vector and lexical indices.\", \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"data\": {\"passages_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"evidence_retrieval\", \"from_node\": \"query_input\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"passages_count\": 1, \"passages\": [{\"chunk_id\": \"42121ce8-77c7-4916-9732-0443156d12e7\", \"document\": \"titan.txt\", \"chunk_index\": null, \"relevance\": null, \"snippet\": \"Titan uses mTLS.\"}]}, \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"kind\": \"graph\", \"seq\": 4}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"answer_generation\", \"from_node\": \"evidence_retrieval\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"kind\": \"graph\", \"seq\": 5}\n\nevent: pipeline_event\ndata: {\"stage\": \"generation\", \"status\": \"running\", \"message\": \"Synthesizing grounded draft answer from retrieved passages...\", \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"generation\", \"status\": \"completed\", \"message\": \"Synthesized grounded draft answer with source citations.\", \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"data\": {}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"answer_generation\", \"from_node\": \"evidence_retrieval\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"draft_answer\": \"Draft answer.\", \"provider\": \"mock\", \"model\": null, \"passages_used\": 1}, \"timestamp\": \"2026-11-02T20:18:50.319164Z\", \"kind\": \"graph\", \"seq\": 6}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"claim_decomposition\", \"from_node\": \"answer_generation\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.319703Z\", \"kind\": \"graph\", \"seq\": 7}\n\nevent: pipeline_event\ndata: {\"stage\": \"decomposition\", \"status\": \"running\", \"message\": \"Decomposing answer into atomic, verifiable factual claims...\", \"timestamp\": \"2026-11-02T20:18:50.319703Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"decomposition\", \"status\": \"completed\", \"message\": \"Decomposed answer into 1 atomic factual claim(s).\", \"timestamp\": \"2026-11-02T20:18:50.319703Z\", \"data\": {\"claim_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"claim_decomposition\", \"from_node\": \"answer_generation\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"claim_count\": 1, \"claims\": [{\"index\": 0, \"text\": \"Titan uses mTLS.\", \"category\": null}], \"claims_total\": 1, \"claims_truncated\": false}, \"timestamp\": \"2026-11-02T20:18:50.319703Z\", \"kind\": \"graph\", \"seq\": 8}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"claim_verification\", \"from_node\": \"claim_decomposition\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"kind\": \"graph\", \"seq\": 9}\n\nevent: pipeline_event\ndata: {\"stage\": \"verification\", \"status\": \"running\", \"message\": \"Auditing atomic claims across structured judge, numeric checks, and citation provenance...\", \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"verification\", \"status\": \"completed\", \"message\": \"Audited 1 claim(s) against retrieved evidence.\", \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"data\": {\"claims_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"claim_verification\", \"from_node\": \"claim_decomposition\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"claims\": [{\"index\": 0, \"text\": \"Titan uses mTLS.\", \"category\": null, \"verdict\": \"supported\", \"confidence\": 0.9, \"rationale\": \"Judged supported.\", \"evidence\": []}], \"claims_total\": 1, \"claims_truncated\": false, \"metrics\": {\"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"total_claims\": 1, \"verdict_distribution\": {\"supported\": 1, \"partially_supported\": 0, \"contradicted\": 0, \"unsupported\": 0, \"insufficient_evidence\": 0, \"verification_error\": 0, \"unknown\": 0}}, \"verification_errors\": 0}, \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"kind\": \"graph\", \"seq\": 10}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"verification_router\", \"from_node\": \"claim_verification\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"kind\": \"graph\", \"seq\": 11}\n\nevent: pipeline_event\ndata: {\"stage\": \"correction\", \"status\": \"running\", \"message\": \"Evaluating verification verdicts and executing self-correction if required...\", \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"data\": {}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"verification_router\", \"from_node\": \"claim_verification\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"route\": \"finalize\", \"reason\": \"All claims are supported by the retrieved evidence.\", \"failed_claims\": 0, \"round\": 0}, \"route\": \"finalize\", \"to_node\": \"final_answer_generation\", \"timestamp\": \"2026-11-02T20:18:50.320240Z\", \"kind\": \"graph\", \"seq\": 12}\n\nevent: graph_event\ndata: {\"event\": \"route_decision\", \"node\": \"verification_router\", \"route\": \"finalize\", \"to_node\": \"final_answer_generation\", \"reason\": \"All claims are supported by the retrieved evidence.\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.320779Z\", \"kind\": \"graph\", \"seq\": 13}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"final_answer_generation\", \"from_node\": \"verification_router\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.320779Z\", \"kind\": \"graph\", \"seq\": 14}\n\nevent: pipeline_event\ndata: {\"stage\": \"correction\", \"status\": \"completed\", \"message\": \"All factual claims fully supported; no correction required.\", \"timestamp\": \"2026-11-02T20:18:50.320779Z\", \"data\": {\"rounds\": 0, \"is_abstained\": false, \"final_claims_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"final_answer_generation\", \"from_node\": \"verification_router\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"final_text\": \"Draft answer.\", \"verification_status\": \"verified\", \"is_abstained\": false, \"correction_rounds\": 0, \"execution_metadata\": {\"latency_ms\": 19, \"top_k\": 3, \"retrieved_passages_count\": 1, \"initial_claim_count\": 1, \"final_claim_count\": 1, \"llm_provider\": \"mock\", \"correction_rounds\": 0, \"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"cache_hit\": false, \"orchestrator\": \"langgraph\", \"router_decision\": \"finalize\", \"router_reason\": \"All claims are supported by the retrieved evidence.\"}}, \"timestamp\": \"2026-11-02T20:18:50.320779Z\", \"kind\": \"graph\", \"seq\": 15}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"database_persistence\", \"from_node\": \"final_answer_generation\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.321333Z\", \"kind\": \"graph\", \"seq\": 16}\n\nevent: pipeline_event\ndata: {\"stage\": \"finalizing\", \"status\": \"running\", \"message\": \"Persisting verified answer, claim relations, and audit trail ledger...\", \"timestamp\": \"2026-11-02T20:18:50.321333Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"finalizing\", \"status\": \"completed\", \"message\": \"Pipeline persistence and audit ledger finalized.\", \"timestamp\": \"2026-11-02T20:18:50.335279Z\", \"data\": {\"answer_id\": \"ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3\", \"verification_status\": \"verified\"}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"database_persistence\", \"from_node\": \"final_answer_generation\", \"round\": 0, \"duration_ms\": 13, \"data\": {\"persisted\": true, \"answer_id\": \"ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3\", \"query_id\": \"243ffbb0-78a5-417b-9df6-510548ffffd5\", \"claim_count\": 1}, \"timestamp\": \"2026-11-02T20:18:50.335279Z\", \"kind\": \"graph\", \"seq\": 17}\n\nevent: pipeline_complete\ndata: {\"query_id\": \"243ffbb0-78a5-417b-9df6-510548ffffd5\", \"workspace_id\": \"e9415b7c-d87b-46bd-b810-f521ed9933bc\", \"prompt\": \"fixture verified\", \"answer\": {\"id\": \"ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3\", \"query_id\": \"243ffbb0-78a5-417b-9df6-510548ffffd5\", \"draft_text\": \"Draft answer.\", \"final_text\": \"Draft answer.\", \"correction_rounds\": 0, \"is_abstained\": false, \"claims\": [{\"id\": \"c1e37de6-09e6-4588-bb4a-0e73b4750b91\", \"answer_id\": \"ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3\", \"claim_index\": 0, \"claim_text\": \"Titan uses mTLS.\", \"verdict\": \"supported\", \"confidence_score\": 0.9, \"rationale\": \"Judged supported.\", \"explanation\": null, \"evidence_references\": [], \"cited_chunk_ids\": [], \"source_excerpts\": [], \"verification_metadata\": null, \"evidence_links\": []}], \"correction_history\": [], \"verification_status\": \"verified\", \"execution_metadata\": {\"latency_ms\": 19, \"top_k\": 3, \"retrieved_passages_count\": 1, \"initial_claim_count\": 1, \"final_claim_count\": 1, \"llm_provider\": \"mock\", \"correction_rounds\": 0, \"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"cache_hit\": false, \"orchestrator\": \"langgraph\", \"router_decision\": \"finalize\", \"router_reason\": \"All claims are supported by the retrieved evidence.\"}, \"metrics\": null, \"execution_trace\": [{\"node\": \"query_input\", \"status\": \"completed\", \"from_node\": null, \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.317955Z\", \"ended_at\": \"2026-11-02T20:18:50.318623Z\", \"duration_ms\": 0, \"data\": {\"prompt\": \"fixture verified\", \"top_k\": 3, \"max_correction_rounds\": 2, \"abstention_policy\": \"strict\"}}, {\"node\": \"evidence_retrieval\", \"status\": \"completed\", \"from_node\": \"query_input\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.318623Z\", \"ended_at\": \"2026-11-02T20:18:50.319164Z\", \"duration_ms\": 0, \"data\": {\"passages_count\": 1, \"passages\": [{\"chunk_id\": \"42121ce8-77c7-4916-9732-0443156d12e7\", \"document\": \"titan.txt\", \"chunk_index\": null, \"relevance\": null, \"snippet\": \"Titan uses mTLS.\"}]}}, {\"node\": \"answer_generation\", \"status\": \"completed\", \"from_node\": \"evidence_retrieval\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.319164Z\", \"ended_at\": \"2026-11-02T20:18:50.319164Z\", \"duration_ms\": 0, \"data\": {\"draft_answer\": \"Draft answer.\", \"provider\": \"mock\", \"model\": null, \"passages_used\": 1}}, {\"node\": \"claim_decomposition\", \"status\": \"completed\", \"from_node\": \"answer_generation\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.319703Z\", \"ended_at\": \"2026-11-02T20:18:50.319703Z\", \"duration_ms\": 0, \"data\": {\"claim_count\": 1, \"claims\": [{\"index\": 0, \"text\": \"Titan uses mTLS.\", \"category\": null}], \"claims_total\": 1, \"claims_truncated\": false}}, {\"node\": \"claim_verification\", \"status\": \"completed\", \"from_node\": \"claim_decomposition\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.320240Z\", \"ended_at\": \"2026-11-02T20:18:50.320240Z\", \"duration_ms\": 0, \"data\": {\"claims\": [{\"index\": 0, \"text\": \"Titan uses mTLS.\", \"category\": null, \"verdict\": \"supported\", \"confidence\": 0.9, \"rationale\": \"Judged supported.\", \"evidence\": []}], \"claims_total\": 1, \"claims_truncated\": false, \"metrics\": {\"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"total_claims\": 1, \"verdict_distribution\": {\"supported\": 1, \"partially_supported\": 0, \"contradicted\": 0, \"unsupported\": 0, \"insufficient_evidence\": 0, \"verification_error\": 0, \"unknown\": 0}}, \"verification_errors\": 0}}, {\"node\": \"verification_router\", \"status\": \"completed\", \"from_node\": \"claim_verification\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.320240Z\", \"ended_at\": \"2026-11-02T20:18:50.320240Z\", \"duration_ms\": 0, \"data\": {\"route\": \"finalize\", \"reason\": \"All claims are supported by the retrieved evidence.\", \"failed_claims\": 0, \"round\": 0}, \"route\": \"finalize\", \"to_node\": \"final_answer_generation\"}, {\"node\": \"final_answer_generation\", \"status\": \"completed\", \"from_node\": \"verification_router\", \"round\": 0, \"started_at\": \"2026-11-02T20:18:50.320779Z\", \"ended_at\": \"2026-11-02T20:18:50.320779Z\", \"duration_ms\": 0, \"data\": {\"final_text\": \"Draft answer.\", \"verification_status\": \"verified\", \"is_abstained\": false, \"correction_rounds\": 0, \"execution_metadata\": {\"latency_ms\": 19, \"top_k\": 3, \"retrieved_passages_count\": 1, \"initial_claim_count\": 1, \"final_claim_count\": 1, \"llm_provider\": \"mock\", \"correction_rounds\": 0, \"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"cache_hit\": false, \"orchestrator\": \"langgraph\", \"router_decision\": \"finalize\", \"router_reason\": \"All claims are supported by the retrieved evidence.\"}}}, {\"node\": \"database_persistence\", \"status\": \"completed\", \"from_node\": \"final_answer_generation\", \"round\": 0, \"data\": {\"persisted\": true}}], \"created_at\": \"2026-11-02T20:18:50.324119\"}, \"verification_status\": \"verified\", \"execution_metadata\": {\"latency_ms\": 19, \"top_k\": 3, \"retrieved_passages_count\": 1, \"initial_claim_count\": 1, \"final_claim_count\": 1, \"llm_provider\": \"mock\", \"correction_rounds\": 0, \"hallucination_rate\": 0.0, \"grounding_rate\": 1.0, \"cache_hit\": false, \"orchestrator\": \"langgraph\", \"router_decision\": \"finalize\", \"router_reason\": \"All claims are supported by the retrieved evidence.\"}}\n\n",
+  "detail": {
+    "query_id": "243ffbb0-78a5-417b-9df6-510548ffffd5",
+    "workspace_id": "e9415b7c-d87b-46bd-b810-f521ed9933bc",
+    "prompt": "fixture verified",
+    "status": "completed",
+    "created_at": "2026-11-02T20:18:50.322956",
+    "error_message": null,
+    "execution_trace": [
+      {
+        "node": "query_input",
+        "status": "completed",
+        "from_node": null,
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.317955Z",
+        "ended_at": "2026-11-02T20:18:50.318623Z",
+        "duration_ms": 0,
+        "data": {
+          "prompt": "fixture verified",
           "top_k": 3,
-          "retrieved_passages_count": 1,
-          "initial_claim_count": 1,
-          "final_claim_count": 1,
-          "llm_provider": "mock",
-          "correction_rounds": 0,
-          "hallucination_rate": 0.0,
-          "grounding_rate": 1.0,
-          "cache_hit": false,
-          "orchestrator": "langgraph",
-          "router_decision": "finalize",
-          "router_reason": "All claims are supported by the retrieved evidence."
+          "max_correction_rounds": 2,
+          "abstention_policy": "strict"
         }
       },
-      "timestamp": "2026-11-02T19:28:24.883927Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "database_persistence",
-      "from_node": "final_answer_generation",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.884484Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "database_persistence",
-      "from_node": "final_answer_generation",
-      "round": 0,
-      "duration_ms": 9,
-      "data": {
-        "persisted": true,
-        "answer_id": "79d5a4e0-dc91-49cc-8554-d30cb8cb4540",
-        "query_id": "e5ce3116-38be-4418-8f97-7fb9c4dfa18f",
-        "claim_count": 1
+      {
+        "node": "evidence_retrieval",
+        "status": "completed",
+        "from_node": "query_input",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.318623Z",
+        "ended_at": "2026-11-02T20:18:50.319164Z",
+        "duration_ms": 0,
+        "data": {
+          "passages_count": 1,
+          "passages": [
+            {
+              "chunk_id": "42121ce8-77c7-4916-9732-0443156d12e7",
+              "document": "titan.txt",
+              "chunk_index": null,
+              "relevance": null,
+              "snippet": "Titan uses mTLS."
+            }
+          ]
+        }
       },
-      "timestamp": "2026-11-02T19:28:24.893844Z",
-      "kind": "graph"
-    }
-  ],
-  "trace": [
-    {
-      "node": "query_input",
-      "status": "completed",
-      "from_node": null,
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.880504Z",
-      "ended_at": "2026-11-02T19:28:24.880504Z",
-      "duration_ms": 0,
-      "data": {
-        "prompt": "fixture verified",
-        "top_k": 3,
-        "max_correction_rounds": 2,
-        "abstention_policy": "strict"
-      }
-    },
-    {
-      "node": "evidence_retrieval",
-      "status": "completed",
-      "from_node": "query_input",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.881062Z",
-      "ended_at": "2026-11-02T19:28:24.881062Z",
-      "duration_ms": 0,
-      "data": {
-        "passages_count": 1,
-        "passages": [
-          {
-            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
-            "document": "titan.txt",
-            "chunk_index": null,
-            "relevance": null,
-            "snippet": "Titan uses mTLS."
-          }
-        ]
-      }
-    },
-    {
-      "node": "answer_generation",
-      "status": "completed",
-      "from_node": "evidence_retrieval",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.882200Z",
-      "ended_at": "2026-11-02T19:28:24.882200Z",
-      "duration_ms": 0,
-      "data": {
-        "draft_answer": "Draft answer.",
-        "provider": "mock",
-        "model": null,
-        "passages_used": 1
-      }
-    },
-    {
-      "node": "claim_decomposition",
-      "status": "completed",
-      "from_node": "answer_generation",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.882785Z",
-      "ended_at": "2026-11-02T19:28:24.882785Z",
-      "duration_ms": 0,
-      "data": {
-        "claim_count": 1,
-        "claims": [
-          {
-            "index": 0,
-            "text": "Titan uses mTLS.",
-            "category": null
-          }
-        ]
-      }
-    },
-    {
-      "node": "claim_verification",
-      "status": "completed",
-      "from_node": "claim_decomposition",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.883339Z",
-      "ended_at": "2026-11-02T19:28:24.883339Z",
-      "duration_ms": 0,
-      "data": {
-        "claims": [
-          {
-            "index": 0,
-            "text": "Titan uses mTLS.",
-            "category": null,
-            "verdict": "supported",
-            "confidence": 0.9,
-            "rationale": "Judged supported.",
-            "evidence": []
-          }
-        ],
-        "metrics": {
-          "hallucination_rate": 0.0,
-          "grounding_rate": 1.0,
-          "total_claims": 1,
-          "verdict_distribution": {
-            "supported": 1,
-            "partially_supported": 0,
-            "contradicted": 0,
-            "unsupported": 0,
-            "insufficient_evidence": 0,
-            "verification_error": 0,
-            "unknown": 0
-          }
+      {
+        "node": "answer_generation",
+        "status": "completed",
+        "from_node": "evidence_retrieval",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.319164Z",
+        "ended_at": "2026-11-02T20:18:50.319164Z",
+        "duration_ms": 0,
+        "data": {
+          "draft_answer": "Draft answer.",
+          "provider": "mock",
+          "model": null,
+          "passages_used": 1
+        }
+      },
+      {
+        "node": "claim_decomposition",
+        "status": "completed",
+        "from_node": "answer_generation",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.319703Z",
+        "ended_at": "2026-11-02T20:18:50.319703Z",
+        "duration_ms": 0,
+        "data": {
+          "claim_count": 1,
+          "claims": [
+            {
+              "index": 0,
+              "text": "Titan uses mTLS.",
+              "category": null
+            }
+          ],
+          "claims_total": 1,
+          "claims_truncated": false
+        }
+      },
+      {
+        "node": "claim_verification",
+        "status": "completed",
+        "from_node": "claim_decomposition",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.320240Z",
+        "ended_at": "2026-11-02T20:18:50.320240Z",
+        "duration_ms": 0,
+        "data": {
+          "claims": [
+            {
+              "index": 0,
+              "text": "Titan uses mTLS.",
+              "category": null,
+              "verdict": "supported",
+              "confidence": 0.9,
+              "rationale": "Judged supported.",
+              "evidence": []
+            }
+          ],
+          "claims_total": 1,
+          "claims_truncated": false,
+          "metrics": {
+            "hallucination_rate": 0.0,
+            "grounding_rate": 1.0,
+            "total_claims": 1,
+            "verdict_distribution": {
+              "supported": 1,
+              "partially_supported": 0,
+              "contradicted": 0,
+              "unsupported": 0,
+              "insufficient_evidence": 0,
+              "verification_error": 0,
+              "unknown": 0
+            }
+          },
+          "verification_errors": 0
+        }
+      },
+      {
+        "node": "verification_router",
+        "status": "completed",
+        "from_node": "claim_verification",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.320240Z",
+        "ended_at": "2026-11-02T20:18:50.320240Z",
+        "duration_ms": 0,
+        "data": {
+          "route": "finalize",
+          "reason": "All claims are supported by the retrieved evidence.",
+          "failed_claims": 0,
+          "round": 0
         },
-        "verification_errors": 0
-      }
-    },
-    {
-      "node": "verification_router",
-      "status": "completed",
-      "from_node": "claim_verification",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.883927Z",
-      "ended_at": "2026-11-02T19:28:24.883927Z",
-      "duration_ms": 0,
-      "data": {
         "route": "finalize",
-        "reason": "All claims are supported by the retrieved evidence.",
-        "failed_claims": 0,
-        "round": 0
+        "to_node": "final_answer_generation"
       },
-      "route": "finalize",
-      "to_node": "final_answer_generation"
-    },
-    {
-      "node": "final_answer_generation",
-      "status": "completed",
-      "from_node": "verification_router",
-      "round": 0,
-      "started_at": "2026-11-02T19:28:24.883927Z",
-      "ended_at": "2026-11-02T19:28:24.883927Z",
-      "duration_ms": 0,
-      "data": {
-        "final_text": "Draft answer.",
-        "verification_status": "verified",
-        "is_abstained": false,
-        "correction_rounds": 0,
-        "execution_metadata": {
-          "latency_ms": 29,
-          "top_k": 3,
-          "retrieved_passages_count": 1,
-          "initial_claim_count": 1,
-          "final_claim_count": 1,
-          "llm_provider": "mock",
+      {
+        "node": "final_answer_generation",
+        "status": "completed",
+        "from_node": "verification_router",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.320779Z",
+        "ended_at": "2026-11-02T20:18:50.320779Z",
+        "duration_ms": 0,
+        "data": {
+          "final_text": "Draft answer.",
+          "verification_status": "verified",
+          "is_abstained": false,
           "correction_rounds": 0,
-          "hallucination_rate": 0.0,
-          "grounding_rate": 1.0,
-          "cache_hit": false,
-          "orchestrator": "langgraph",
-          "router_decision": "finalize",
-          "router_reason": "All claims are supported by the retrieved evidence."
+          "execution_metadata": {
+            "latency_ms": 19,
+            "top_k": 3,
+            "retrieved_passages_count": 1,
+            "initial_claim_count": 1,
+            "final_claim_count": 1,
+            "llm_provider": "mock",
+            "correction_rounds": 0,
+            "hallucination_rate": 0.0,
+            "grounding_rate": 1.0,
+            "cache_hit": false,
+            "orchestrator": "langgraph",
+            "router_decision": "finalize",
+            "router_reason": "All claims are supported by the retrieved evidence."
+          }
+        }
+      },
+      {
+        "node": "database_persistence",
+        "status": "completed",
+        "from_node": "final_answer_generation",
+        "round": 0,
+        "data": {
+          "persisted": true
         }
       }
+    ],
+    "answer": {
+      "id": "ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3",
+      "query_id": "243ffbb0-78a5-417b-9df6-510548ffffd5",
+      "draft_text": "Draft answer.",
+      "final_text": "Draft answer.",
+      "correction_rounds": 0,
+      "is_abstained": false,
+      "claims": [
+        {
+          "id": "c1e37de6-09e6-4588-bb4a-0e73b4750b91",
+          "answer_id": "ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3",
+          "claim_index": 0,
+          "claim_text": "Titan uses mTLS.",
+          "verdict": "supported",
+          "confidence_score": 0.9,
+          "rationale": "Judged supported.",
+          "explanation": null,
+          "evidence_references": [],
+          "cited_chunk_ids": [],
+          "source_excerpts": [],
+          "verification_metadata": null,
+          "evidence_links": []
+        }
+      ],
+      "correction_history": [],
+      "verification_status": "verified",
+      "execution_metadata": {
+        "latency_ms": 19,
+        "top_k": 3,
+        "retrieved_passages_count": 1,
+        "initial_claim_count": 1,
+        "final_claim_count": 1,
+        "llm_provider": "mock",
+        "correction_rounds": 0,
+        "hallucination_rate": 0.0,
+        "grounding_rate": 1.0,
+        "cache_hit": false,
+        "orchestrator": "langgraph",
+        "router_decision": "finalize",
+        "router_reason": "All claims are supported by the retrieved evidence."
+      },
+      "metrics": null,
+      "execution_trace": [
+        {
+          "node": "query_input",
+          "status": "completed",
+          "from_node": null,
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.317955Z",
+          "ended_at": "2026-11-02T20:18:50.318623Z",
+          "duration_ms": 0,
+          "data": {
+            "prompt": "fixture verified",
+            "top_k": 3,
+            "max_correction_rounds": 2,
+            "abstention_policy": "strict"
+          }
+        },
+        {
+          "node": "evidence_retrieval",
+          "status": "completed",
+          "from_node": "query_input",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.318623Z",
+          "ended_at": "2026-11-02T20:18:50.319164Z",
+          "duration_ms": 0,
+          "data": {
+            "passages_count": 1,
+            "passages": [
+              {
+                "chunk_id": "42121ce8-77c7-4916-9732-0443156d12e7",
+                "document": "titan.txt",
+                "chunk_index": null,
+                "relevance": null,
+                "snippet": "Titan uses mTLS."
+              }
+            ]
+          }
+        },
+        {
+          "node": "answer_generation",
+          "status": "completed",
+          "from_node": "evidence_retrieval",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.319164Z",
+          "ended_at": "2026-11-02T20:18:50.319164Z",
+          "duration_ms": 0,
+          "data": {
+            "draft_answer": "Draft answer.",
+            "provider": "mock",
+            "model": null,
+            "passages_used": 1
+          }
+        },
+        {
+          "node": "claim_decomposition",
+          "status": "completed",
+          "from_node": "answer_generation",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.319703Z",
+          "ended_at": "2026-11-02T20:18:50.319703Z",
+          "duration_ms": 0,
+          "data": {
+            "claim_count": 1,
+            "claims": [
+              {
+                "index": 0,
+                "text": "Titan uses mTLS.",
+                "category": null
+              }
+            ],
+            "claims_total": 1,
+            "claims_truncated": false
+          }
+        },
+        {
+          "node": "claim_verification",
+          "status": "completed",
+          "from_node": "claim_decomposition",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.320240Z",
+          "ended_at": "2026-11-02T20:18:50.320240Z",
+          "duration_ms": 0,
+          "data": {
+            "claims": [
+              {
+                "index": 0,
+                "text": "Titan uses mTLS.",
+                "category": null,
+                "verdict": "supported",
+                "confidence": 0.9,
+                "rationale": "Judged supported.",
+                "evidence": []
+              }
+            ],
+            "claims_total": 1,
+            "claims_truncated": false,
+            "metrics": {
+              "hallucination_rate": 0.0,
+              "grounding_rate": 1.0,
+              "total_claims": 1,
+              "verdict_distribution": {
+                "supported": 1,
+                "partially_supported": 0,
+                "contradicted": 0,
+                "unsupported": 0,
+                "insufficient_evidence": 0,
+                "verification_error": 0,
+                "unknown": 0
+              }
+            },
+            "verification_errors": 0
+          }
+        },
+        {
+          "node": "verification_router",
+          "status": "completed",
+          "from_node": "claim_verification",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.320240Z",
+          "ended_at": "2026-11-02T20:18:50.320240Z",
+          "duration_ms": 0,
+          "data": {
+            "route": "finalize",
+            "reason": "All claims are supported by the retrieved evidence.",
+            "failed_claims": 0,
+            "round": 0
+          },
+          "route": "finalize",
+          "to_node": "final_answer_generation"
+        },
+        {
+          "node": "final_answer_generation",
+          "status": "completed",
+          "from_node": "verification_router",
+          "round": 0,
+          "started_at": "2026-11-02T20:18:50.320779Z",
+          "ended_at": "2026-11-02T20:18:50.320779Z",
+          "duration_ms": 0,
+          "data": {
+            "final_text": "Draft answer.",
+            "verification_status": "verified",
+            "is_abstained": false,
+            "correction_rounds": 0,
+            "execution_metadata": {
+              "latency_ms": 19,
+              "top_k": 3,
+              "retrieved_passages_count": 1,
+              "initial_claim_count": 1,
+              "final_claim_count": 1,
+              "llm_provider": "mock",
+              "correction_rounds": 0,
+              "hallucination_rate": 0.0,
+              "grounding_rate": 1.0,
+              "cache_hit": false,
+              "orchestrator": "langgraph",
+              "router_decision": "finalize",
+              "router_reason": "All claims are supported by the retrieved evidence."
+            }
+          }
+        },
+        {
+          "node": "database_persistence",
+          "status": "completed",
+          "from_node": "final_answer_generation",
+          "round": 0,
+          "data": {
+            "persisted": true
+          }
+        }
+      ],
+      "created_at": "2026-11-02T20:18:50.324119"
     },
-    {
-      "node": "database_persistence",
-      "status": "completed",
-      "from_node": "final_answer_generation",
-      "round": 0,
-      "data": {
-        "persisted": true
-      }
+    "verification_status": "verified",
+    "execution_metadata": {
+      "latency_ms": 19,
+      "top_k": 3,
+      "retrieved_passages_count": 1,
+      "initial_claim_count": 1,
+      "final_claim_count": 1,
+      "llm_provider": "mock",
+      "correction_rounds": 0,
+      "hallucination_rate": 0.0,
+      "grounding_rate": 1.0,
+      "cache_hit": false,
+      "orchestrator": "langgraph",
+      "router_decision": "finalize",
+      "router_reason": "All claims are supported by the retrieved evidence."
     }
-  ]
+  },
+  "history_item": {
+    "query_id": "243ffbb0-78a5-417b-9df6-510548ffffd5",
+    "prompt": "fixture verified",
+    "status": "completed",
+    "created_at": "2026-11-02T20:18:50.322956",
+    "answer_id": "ccfc03e3-8dc1-4bc2-8572-bd0f379a6ca3",
+    "verification_status": "verified",
+    "correction_rounds": 0,
+    "claim_count": 1,
+    "error_message": null,
+    "has_trace": true
+  }
 }

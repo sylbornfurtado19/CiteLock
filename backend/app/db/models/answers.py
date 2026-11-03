@@ -37,6 +37,9 @@ class Answer(Base):
 
     @property
     def execution_trace(self):
+        """The recorded node trace: canonical copy lives on the query; older answers carried it inline."""
+        if self.query is not None and self.query.execution_trace:
+            return self.query.execution_trace
         return (self.model_config_data or {}).get("execution_trace", [])
 
     @property

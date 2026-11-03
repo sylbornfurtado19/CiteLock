@@ -1,160 +1,134 @@
 {
   "scenario": "failed",
-  "events": [
-    {
-      "event": "node_start",
-      "node": "query_input",
-      "from_node": null,
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.930491Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "query_input",
-      "from_node": null,
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "prompt": "fixture failed",
-        "top_k": 3,
-        "max_correction_rounds": 2,
-        "abstention_policy": "strict"
+  "sse": "event: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"query_input\", \"from_node\": null, \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.506496Z\", \"kind\": \"graph\", \"seq\": 1}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"query_input\", \"from_node\": null, \"round\": 0, \"duration_ms\": 0, \"data\": {\"prompt\": \"fixture failed\", \"top_k\": 3, \"max_correction_rounds\": 2, \"abstention_policy\": \"strict\"}, \"timestamp\": \"2026-11-02T20:18:50.507058Z\", \"kind\": \"graph\", \"seq\": 2}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"evidence_retrieval\", \"from_node\": \"query_input\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.507058Z\", \"kind\": \"graph\", \"seq\": 3}\n\nevent: pipeline_event\ndata: {\"stage\": \"retrieval\", \"status\": \"running\", \"message\": \"Retrieving relevant reference passages from vector and keyword index...\", \"timestamp\": \"2026-11-02T20:18:50.507058Z\", \"data\": {\"top_k\": 3}}\n\nevent: pipeline_event\ndata: {\"stage\": \"retrieval\", \"status\": \"completed\", \"message\": \"Retrieved 1 reference passage(s) across dense vector and lexical indices.\", \"timestamp\": \"2026-11-02T20:18:50.507058Z\", \"data\": {\"passages_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"evidence_retrieval\", \"from_node\": \"query_input\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"passages_count\": 1, \"passages\": [{\"chunk_id\": \"42121ce8-77c7-4916-9732-0443156d12e7\", \"document\": \"titan.txt\", \"chunk_index\": null, \"relevance\": null, \"snippet\": \"Titan uses mTLS.\"}]}, \"timestamp\": \"2026-11-02T20:18:50.507058Z\", \"kind\": \"graph\", \"seq\": 4}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"answer_generation\", \"from_node\": \"evidence_retrieval\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"kind\": \"graph\", \"seq\": 5}\n\nevent: pipeline_event\ndata: {\"stage\": \"generation\", \"status\": \"running\", \"message\": \"Synthesizing grounded draft answer from retrieved passages...\", \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"generation\", \"status\": \"completed\", \"message\": \"Synthesized grounded draft answer with source citations.\", \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"data\": {}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"answer_generation\", \"from_node\": \"evidence_retrieval\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"draft_answer\": \"Draft answer.\", \"provider\": \"mock\", \"model\": null, \"passages_used\": 1}, \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"kind\": \"graph\", \"seq\": 6}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"claim_decomposition\", \"from_node\": \"answer_generation\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"kind\": \"graph\", \"seq\": 7}\n\nevent: pipeline_event\ndata: {\"stage\": \"decomposition\", \"status\": \"running\", \"message\": \"Decomposing answer into atomic, verifiable factual claims...\", \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"decomposition\", \"status\": \"completed\", \"message\": \"Decomposed answer into 1 atomic factual claim(s).\", \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"data\": {\"claim_count\": 1}}\n\nevent: graph_event\ndata: {\"event\": \"node_complete\", \"node\": \"claim_decomposition\", \"from_node\": \"answer_generation\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"claim_count\": 1, \"claims\": [{\"index\": 0, \"text\": \"Titan uses mTLS.\", \"category\": null}], \"claims_total\": 1, \"claims_truncated\": false}, \"timestamp\": \"2026-11-02T20:18:50.507605Z\", \"kind\": \"graph\", \"seq\": 8}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"claim_verification\", \"from_node\": \"claim_decomposition\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.508169Z\", \"kind\": \"graph\", \"seq\": 9}\n\nevent: pipeline_event\ndata: {\"stage\": \"verification\", \"status\": \"running\", \"message\": \"Auditing atomic claims across structured judge, numeric checks, and citation provenance...\", \"timestamp\": \"2026-11-02T20:18:50.508169Z\", \"data\": {}}\n\nevent: pipeline_event\ndata: {\"stage\": \"verification\", \"status\": \"failed\", \"message\": \"Verification error encountered during claim audit pass.\", \"timestamp\": \"2026-11-02T20:18:50.508169Z\", \"data\": {}}\n\nevent: graph_event\ndata: {\"event\": \"node_error\", \"node\": \"claim_verification\", \"from_node\": \"claim_decomposition\", \"round\": 0, \"duration_ms\": 0, \"data\": {}, \"error\": {\"stage\": \"claim_verification\", \"kind\": \"verification\", \"message\": \"1 claim(s) failed with verification_error: Judged verification_error.\"}, \"timestamp\": \"2026-11-02T20:18:50.508169Z\", \"kind\": \"graph\", \"seq\": 10}\n\nevent: graph_event\ndata: {\"event\": \"node_start\", \"node\": \"error_handler\", \"from_node\": \"claim_verification\", \"round\": 0, \"timestamp\": \"2026-11-02T20:18:50.508724Z\", \"kind\": \"graph\", \"seq\": 11}\n\nevent: graph_event\ndata: {\"event\": \"node_error\", \"node\": \"error_handler\", \"from_node\": \"claim_verification\", \"round\": 0, \"duration_ms\": 0, \"data\": {\"error\": {\"stage\": \"claim_verification\", \"kind\": \"verification\", \"message\": \"1 claim(s) failed with verification_error: Judged verification_error.\"}}, \"error\": {\"stage\": \"claim_verification\", \"kind\": \"verification\", \"message\": \"1 claim(s) failed with verification_error: Judged verification_error.\"}, \"timestamp\": \"2026-11-02T20:18:50.509251Z\", \"kind\": \"graph\", \"seq\": 12}\n\nevent: pipeline_error\ndata: {\"stage\": \"verification\", \"status\": \"failed\", \"message\": \"Verification service is temporarily unavailable. Please try again later.\", \"timestamp\": \"2026-11-02T20:18:50.509808Z\"}\n\n",
+  "detail": {
+    "query_id": "f3ec96c5-519a-47f7-b2f1-a1aeb8241c02",
+    "workspace_id": "e9415b7c-d87b-46bd-b810-f521ed9933bc",
+    "prompt": "fixture failed",
+    "status": "failed",
+    "created_at": "2026-11-02T20:18:50.508724",
+    "error_message": "1 claim(s) failed with verification_error: Judged verification_error.",
+    "execution_trace": [
+      {
+        "node": "query_input",
+        "status": "completed",
+        "from_node": null,
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.506496Z",
+        "ended_at": "2026-11-02T20:18:50.506496Z",
+        "duration_ms": 0,
+        "data": {
+          "prompt": "fixture failed",
+          "top_k": 3,
+          "max_correction_rounds": 2,
+          "abstention_policy": "strict"
+        }
       },
-      "timestamp": "2026-11-02T19:28:24.930491Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "evidence_retrieval",
-      "from_node": "query_input",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.931180Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "evidence_retrieval",
-      "from_node": "query_input",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "passages_count": 1,
-        "passages": [
-          {
-            "chunk_id": "ea6c1ae1-2fc9-418b-8a1f-ded1e15eaf44",
-            "document": "titan.txt",
-            "chunk_index": null,
-            "relevance": null,
-            "snippet": "Titan uses mTLS."
-          }
-        ]
+      {
+        "node": "evidence_retrieval",
+        "status": "completed",
+        "from_node": "query_input",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.507058Z",
+        "ended_at": "2026-11-02T20:18:50.507058Z",
+        "duration_ms": 0,
+        "data": {
+          "passages_count": 1,
+          "passages": [
+            {
+              "chunk_id": "42121ce8-77c7-4916-9732-0443156d12e7",
+              "document": "titan.txt",
+              "chunk_index": null,
+              "relevance": null,
+              "snippet": "Titan uses mTLS."
+            }
+          ]
+        }
       },
-      "timestamp": "2026-11-02T19:28:24.931180Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "answer_generation",
-      "from_node": "evidence_retrieval",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.931792Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "answer_generation",
-      "from_node": "evidence_retrieval",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "draft_answer": "Draft answer.",
-        "provider": "mock",
-        "model": null,
-        "passages_used": 1
+      {
+        "node": "answer_generation",
+        "status": "completed",
+        "from_node": "evidence_retrieval",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.507605Z",
+        "ended_at": "2026-11-02T20:18:50.507605Z",
+        "duration_ms": 0,
+        "data": {
+          "draft_answer": "Draft answer.",
+          "provider": "mock",
+          "model": null,
+          "passages_used": 1
+        }
       },
-      "timestamp": "2026-11-02T19:28:24.931792Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "claim_decomposition",
-      "from_node": "answer_generation",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.932424Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_complete",
-      "node": "claim_decomposition",
-      "from_node": "answer_generation",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
-        "claim_count": 1,
-        "claims": [
-          {
-            "index": 0,
-            "text": "Titan uses mTLS.",
-            "category": null
-          }
-        ]
+      {
+        "node": "claim_decomposition",
+        "status": "completed",
+        "from_node": "answer_generation",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.507605Z",
+        "ended_at": "2026-11-02T20:18:50.507605Z",
+        "duration_ms": 0,
+        "data": {
+          "claim_count": 1,
+          "claims": [
+            {
+              "index": 0,
+              "text": "Titan uses mTLS.",
+              "category": null
+            }
+          ],
+          "claims_total": 1,
+          "claims_truncated": false
+        }
       },
-      "timestamp": "2026-11-02T19:28:24.932424Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "claim_verification",
-      "from_node": "claim_decomposition",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.932424Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_error",
-      "node": "claim_verification",
-      "from_node": "claim_decomposition",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {},
-      "error": {
-        "stage": "claim_verification",
-        "kind": "verification",
-        "message": "1 claim(s) failed with verification_error: Judged verification_error."
-      },
-      "timestamp": "2026-11-02T19:28:24.933083Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_start",
-      "node": "error_handler",
-      "from_node": "claim_verification",
-      "round": 0,
-      "timestamp": "2026-11-02T19:28:24.933625Z",
-      "kind": "graph"
-    },
-    {
-      "event": "node_error",
-      "node": "error_handler",
-      "from_node": "claim_verification",
-      "round": 0,
-      "duration_ms": 0,
-      "data": {
+      {
+        "node": "claim_verification",
+        "status": "failed",
+        "from_node": "claim_decomposition",
+        "round": 0,
+        "started_at": "2026-11-02T20:18:50.508169Z",
+        "ended_at": "2026-11-02T20:18:50.508169Z",
+        "duration_ms": 0,
+        "data": {},
         "error": {
           "stage": "claim_verification",
           "kind": "verification",
           "message": "1 claim(s) failed with verification_error: Judged verification_error."
         }
       },
-      "error": {
-        "stage": "claim_verification",
-        "kind": "verification",
-        "message": "1 claim(s) failed with verification_error: Judged verification_error."
-      },
-      "timestamp": "2026-11-02T19:28:24.934207Z",
-      "kind": "graph"
-    }
-  ],
-  "trace": []
+      {
+        "node": "error_handler",
+        "status": "failed",
+        "from_node": "claim_verification",
+        "round": 0,
+        "error": {
+          "stage": "claim_verification",
+          "kind": "verification",
+          "message": "1 claim(s) failed with verification_error: Judged verification_error."
+        },
+        "data": {
+          "error": {
+            "stage": "claim_verification",
+            "kind": "verification",
+            "message": "1 claim(s) failed with verification_error: Judged verification_error."
+          }
+        }
+      }
+    ],
+    "answer": null,
+    "verification_status": null,
+    "execution_metadata": {}
+  },
+  "history_item": {
+    "query_id": "f3ec96c5-519a-47f7-b2f1-a1aeb8241c02",
+    "prompt": "fixture failed",
+    "status": "failed",
+    "created_at": "2026-11-02T20:18:50.508724",
+    "answer_id": null,
+    "verification_status": null,
+    "correction_rounds": null,
+    "claim_count": null,
+    "error_message": "1 claim(s) failed with verification_error: Judged verification_error.",
+    "has_trace": true
+  }
 }

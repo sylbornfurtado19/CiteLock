@@ -3,13 +3,15 @@ import type { ExecutionState, GraphEvent, GraphNodeId, TraceRecord } from "@/typ
 import { createInitialState, executionProgress, executionReducer, restoreFromTrace } from "./reducer";
 import { GRAPH_NODES, NODE_BY_ID, ROUTE_TARGETS, SOURCE_HANDLES, STATIC_EDGES, TARGET_HANDLES, NODE_HEIGHT, NODE_WIDTH } from "./graphDefinition";
 import { formatDuration, nodeMeta } from "./summary";
-import verified from "./__fixtures__/verified.json";
-import corrected from "./__fixtures__/corrected.json";
-import abstained from "./__fixtures__/abstained.json";
-import failed from "./__fixtures__/failed.json";
+import { RUN_NAMES, graphEvents, persistedTrace } from "./testFixtures";
+
+
+
 
 type Fixture = { scenario: string; events: GraphEvent[]; trace: TraceRecord[] };
-const FIXTURES = { verified, corrected, abstained, failed } as unknown as Record<string, Fixture>;
+const FIXTURES = Object.fromEntries(
+  RUN_NAMES.map((n) => [n, { scenario: n, events: graphEvents(n), trace: persistedTrace(n) }])
+) as Record<string, Fixture>;
 
 function replay(events: GraphEvent[], upTo = events.length): ExecutionState {
   let state = createInitialState();

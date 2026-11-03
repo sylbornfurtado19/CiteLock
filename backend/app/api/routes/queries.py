@@ -3,18 +3,23 @@ import logging
 import queue
 import threading
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 import app.db.session
 from app.db.session import get_db
+from app.db.models.answers import Answer
+from app.db.models.queries import Query
 from app.db.models.workspaces import Workspace
 from app.api.deps import get_workspace_scoped
-from app.schemas import QueryCreate, QueryResponse
+from app.schemas import AnswerRead, QueryCreate, QueryDetail, QueryHistoryItem, QueryResponse
 from app.pipeline.orchestrator import run_pipeline
+from app.pipeline.state import PipelineCancelledError, PipelineTimeoutError
 from app.services.cache import pipeline_cache_service
+from app.services.generation.answer import GenerationError
 from app.security.injection_guard import check_prompt_injection
 from app.services.verification.judge import VerificationProviderError
 from app.providers.base import ProviderError
@@ -23,10 +28,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/queries", tags=["Queries"])
 
+# Interval between SSE heartbeat comments. Proxies (Render, Vercel) close connections that stay silent too long.
+SSE_HEARTBEAT_SECONDS = 30.0
+
+PROVIDER_MESSAGE = "Verification service is temporarily unavailable. Please try again later."
+GENERATION_MESSAGE = "The language model provider is temporarily unavailable. Please try again later."
+TIMEOUT_MESSAGE = "The pipeline exceeded its time limit. Please try again with a simpler question."
+INTERNAL_MESSAGE = "An internal error occurred while processing the query."
+
+
+def _is_generation_provider_failure(exc: BaseException) -> bool:
+    return isinstance(exc, GenerationError) and isinstance(exc.__cause__, ProviderError)
+
+
+def _describe_failure(exc: BaseException) -> Tuple[str, str, int]:
+    """Map a pipeline exception to (stage, client-safe message, HTTP status for the non-streaming API)."""
+    if isinstance(exc, PipelineTimeoutError):
+        return "timeout", TIMEOUT_MESSAGE, status.HTTP_504_GATEWAY_TIMEOUT
+    if isinstance(exc, (VerificationProviderError, ProviderError)):
+        return "verification", PROVIDER_MESSAGE, status.HTTP_502_BAD_GATEWAY
+    if _is_generation_provider_failure(exc):
+        return "generation", GENERATION_MESSAGE, status.HTTP_502_BAD_GATEWAY
+    return "execution", INTERNAL_MESSAGE, status.HTTP_500_INTERNAL_SERVER_ERROR
+
 
 def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
     """Generator executing run_pipeline in worker thread and yielding SSE frames."""
     event_queue: queue.Queue = queue.Queue()
+    # Set when the client goes away so the worker stops before spending more model calls on a result nobody reads.
+    cancelled = threading.Event()
 
     def worker():
         thread_db = app.db.session.SessionLocal()
@@ -42,6 +72,7 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
                 prompt=prompt,
                 top_k=top_k,
                 on_event=on_event,
+                cancel_event=cancelled,
             )
 
             query_obj = pipeline_result["query"]
@@ -57,31 +88,23 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
             )
             complete_data = json.loads(response_model.model_dump_json())
             event_queue.put(("pipeline_complete", complete_data))
-        except (VerificationProviderError, ProviderError) as e:
-            logger.error("Provider outage during streaming query: %s", e)
-            event_queue.put((
-                "pipeline_error",
-                {
-                    "stage": "verification",
-                    "status": "failed",
-                    "message": "Verification service is temporarily unavailable. Please try again later.",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                },
-            ))
+        except PipelineCancelledError:
+            logger.info("Streaming query cancelled because the client disconnected.")
         except Exception as e:
-            logger.exception("Pipeline streaming execution failed: %s", e)
-            from app.config import get_settings
-            detail = (
-                f" ({type(e).__name__}: {str(e)[:300]})"
-                if get_settings().environment.lower() != "production"
-                else ""
-            )
+            stage, message, _ = _describe_failure(e)
+            if stage == "execution":
+                logger.exception("Pipeline streaming execution failed: %s", e)
+                from app.config import get_settings
+                if get_settings().environment.lower() != "production":
+                    message = f"{message} ({type(e).__name__}: {str(e)[:300]})"
+            else:
+                logger.error("Pipeline streaming query failed (%s): %s", stage, e)
             event_queue.put((
                 "pipeline_error",
                 {
-                    "stage": "execution",
+                    "stage": stage,
                     "status": "failed",
-                    "message": f"An internal error occurred while processing the query.{detail}",
+                    "message": message,
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                 },
             ))
@@ -92,19 +115,23 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
     worker_thread = threading.Thread(target=worker, daemon=True)
     worker_thread.start()
 
-    while True:
-        try:
-            event_type, payload = event_queue.get(timeout=30.0)
-        except queue.Empty:
-            # Emit SSE heartbeat comment to keep HTTP connection alive
-            yield ": ping\n\n"
-            continue
+    try:
+        while True:
+            try:
+                event_type, payload = event_queue.get(timeout=SSE_HEARTBEAT_SECONDS)
+            except queue.Empty:
+                # Emit SSE heartbeat comment to keep HTTP connection alive
+                yield ": ping\n\n"
+                continue
 
-        if event_type == "done":
-            break
+            if event_type == "done":
+                break
 
-        data_json = json.dumps(payload)
-        yield f"event: {event_type}\ndata: {data_json}\n\n"
+            data_json = json.dumps(payload)
+            yield f"event: {event_type}\ndata: {data_json}\n\n"
+    finally:
+        # Runs on normal completion and when the client disconnects mid-stream (generator closed).
+        cancelled.set()
 
 
 @router.post("", response_model=QueryResponse, status_code=status.HTTP_201_CREATED)
@@ -157,7 +184,9 @@ def execute_query(
             _generate_pipeline_sse(workspace.id, payload.prompt, top_k),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache",
+                # no-transform stops intermediaries from compressing/buffering the stream; X-Accel-Buffering
+                # disables nginx-style proxy buffering so events reach the browser as they happen.
+                "Cache-Control": "no-cache, no-transform",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
             },
@@ -165,18 +194,13 @@ def execute_query(
 
     try:
         pipeline_result = run_pipeline(db, workspace.id, payload.prompt, top_k=top_k)
-    except (VerificationProviderError, ProviderError) as e:
-        logger.error("Provider outage during query processing: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Verification service is temporarily unavailable. Please try again later.",
-        )
     except Exception as e:
-        logger.exception("Pipeline execution failed: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal error occurred while processing the query.",
-        )
+        stage, message, http_status = _describe_failure(e)
+        if stage == "execution":
+            logger.exception("Pipeline execution failed: %s", e)
+        else:
+            logger.error("Pipeline query failed (%s): %s", stage, e, exc_info=True)
+        raise HTTPException(status_code=http_status, detail=message)
 
     query_obj = pipeline_result["query"]
     answer_obj = pipeline_result["answer"]
@@ -202,6 +226,69 @@ def get_query_cache_metrics(
 ):
     """Retrieve telemetry metrics for pipeline query caching (hit rate, miss rate, evictions)."""
     return pipeline_cache_service.get_metrics()
+
+
+@router.get("", response_model=List[QueryHistoryItem])
+def list_query_history(
+    limit: int = QueryParam(20, ge=1, le=100),
+    offset: int = QueryParam(0, ge=0),
+    workspace: Workspace = Depends(get_workspace_scoped),
+    db: Session = Depends(get_db),
+):
+    """Previous queries for the workspace, newest first, including failed runs that never produced an answer."""
+    queries = (
+        db.query(Query)
+        .filter(Query.workspace_id == workspace.id)
+        .order_by(Query.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for q in queries:
+        answer: Optional[Answer] = q.answers[0] if q.answers else None
+        items.append(
+            QueryHistoryItem(
+                query_id=q.id,
+                prompt=q.prompt,
+                status=q.status,
+                created_at=q.created_at,
+                answer_id=answer.id if answer else None,
+                verification_status=answer.verification_status if answer else None,
+                correction_rounds=answer.correction_rounds if answer else None,
+                claim_count=len(answer.claims) if answer else None,
+                error_message=q.error_message,
+                has_trace=bool(q.execution_trace),
+            )
+        )
+    return items
+
+
+@router.get("/{query_id}", response_model=QueryDetail)
+def get_query_detail(
+    query_id: UUID,
+    workspace: Workspace = Depends(get_workspace_scoped),
+    db: Session = Depends(get_db),
+):
+    """Everything needed to reopen a past query: final answer, verification, correction history and execution trace."""
+    q = db.query(Query).filter(Query.id == query_id, Query.workspace_id == workspace.id).first()
+    if not q:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found in this workspace")
+
+    answer = q.answers[0] if q.answers else None
+    return QueryDetail(
+        query_id=q.id,
+        workspace_id=q.workspace_id,
+        prompt=q.prompt,
+        status=q.status,
+        created_at=q.created_at,
+        error_message=q.error_message,
+        execution_trace=q.execution_trace or [],
+        answer=AnswerRead.model_validate(answer) if answer else None,
+        verification_status=answer.verification_status if answer else None,
+        execution_metadata=answer.execution_metadata if answer else {},
+    )
 
 
 @router.post("/stream")

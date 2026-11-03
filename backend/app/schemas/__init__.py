@@ -202,6 +202,36 @@ class QueryResponse(BaseModel):
     execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
+class QueryHistoryItem(BaseModel):
+    """One row of the previous-queries list; failed runs have no answer."""
+
+    query_id: UUID
+    prompt: str
+    status: str
+    created_at: datetime
+    answer_id: Optional[UUID] = None
+    verification_status: Optional[str] = None
+    correction_rounds: Optional[int] = None
+    claim_count: Optional[int] = None
+    error_message: Optional[str] = None
+    has_trace: bool = False
+
+
+class QueryDetail(BaseModel):
+    """A past query with everything needed to restore its answer and execution graph."""
+
+    query_id: UUID
+    workspace_id: UUID
+    prompt: str
+    status: str
+    created_at: datetime
+    error_message: Optional[str] = None
+    execution_trace: List[Dict[str, Any]] = Field(default_factory=list)
+    answer: Optional[AnswerRead] = None
+    verification_status: Optional[str] = None
+    execution_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
 # Audit & Export Schemas
 class AnswerAuditResponse(BaseModel):
     answer_id: UUID

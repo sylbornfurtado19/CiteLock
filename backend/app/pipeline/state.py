@@ -7,6 +7,14 @@ from uuid import UUID
 # Absolute ceiling on correction rounds, regardless of workspace or environment configuration.
 HARD_MAX_CORRECTION_ROUNDS = 10
 
+class PipelineTimeoutError(Exception):
+    """Raised when a run exceeds the configured overall pipeline time budget."""
+
+
+class PipelineCancelledError(Exception):
+    """Raised when the client that requested a run disconnected, so remaining work is abandoned."""
+
+
 # Execution statuses
 STATUS_PENDING = "pending"
 STATUS_RUNNING = "running"

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     groq_llm_model: str = "llama-3.3-70b-versatile"
 
     max_correction_retries: int = 2
+    # Overall wall-clock budget for one pipeline run, checked before each graph node starts.
+    pipeline_timeout_seconds: float = 300.0
     max_verification_workers: int = 1
     http_connect_timeout: float = 5.0
     http_read_timeout: float = 60.0
@@ -60,7 +62,8 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> List[str]:
         """Parse comma-separated CORS origins into a list."""
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        # Browsers send Origin without a trailing slash, so "https://app.vercel.app/" would never match.
+        return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
 
     @model_validator(mode="after")
     def validate_providers_and_keys(self) -> "Settings":

@@ -8,7 +8,10 @@ import { AnswerWithCitations } from "./AnswerWithCitations";
 import { PipelineProgressStepper } from "./PipelineProgressStepper";
 import { ExecutionPanel } from "@/components/execution/ExecutionPanel";
 import { useExecutionGraph } from "@/hooks/useExecutionGraph";
-import { Answer } from "@/types";
+import { Answer, QueryDetail, QueryHistoryItem } from "@/types";
+import { HistoryMenu, historyQueryKey } from "./HistoryMenu";
+import { planRestore } from "@/lib/execution/history";
+import { apiFetch } from "@/lib/api";
 import type { ExecutionState } from "@/types/execution";
 import { PipelineEvent, PipelineStage } from "@/types/pipeline";
 import { streamPipelineQuery } from "@/lib/stream";
@@ -21,6 +24,9 @@ interface Message {
   sender: "user" | "assistant";
   text?: string;
   answer?: Answer;
+  /** Straight from the pipeline_complete payload (or the stored query when reopened). */
+  verificationStatus?: string | null;
+  executionMetadata?: Record<string, any> | null;
 }
 
 /** One finished (or failed) execution kept for the session so earlier answers can be re-inspected. */
@@ -69,6 +75,9 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
     if (tab === "chat") scrollToBottom();
   }, [messages, activeStage, loading, tab]);
 
+  // Leaving the page (or switching workspace) must not leave a stream running in the background.
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
   const saveExecution = (id: string, prompt: string) => {
     const snapshot = execution.getState();
     setHistory((prev) => [...prev.filter((r) => r.id !== id), { id, prompt, state: snapshot }]);
@@ -82,6 +91,7 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
     setIsStreamFailed(false);
     setStreamErrorMessage(null);
     execution.reset();
+    execution.onStarted();
     setViewingId(null);
 
     const abortController = new AbortController();
@@ -126,13 +136,15 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         saveExecution(response.answer.id, userPrompt);
       }
 
-      // Transition smoothly to final verified answer
+      // The final answer comes straight from the backend's pipeline_complete payload.
       setMessages((prev) => [
         ...prev,
         {
           id: response.answer.id,
           sender: "assistant",
           answer: response.answer,
+          verificationStatus: response.verification_status,
+          executionMetadata: response.execution_metadata,
         },
       ]);
 
@@ -144,6 +156,7 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.audits.all(workspaceId),
         });
+        queryClient.invalidateQueries({ queryKey: historyQueryKey(workspaceId) });
       }
     } catch (err: unknown) {
       console.error("Pipeline streaming error:", err);
@@ -209,6 +222,46 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
     setTab("execution");
   };
 
+  /** Reopen a previous query: its stored answer, verification, correction history and recorded graph. */
+  const openPreviousQuery = async (item: QueryHistoryItem) => {
+    if (loading) return;
+    const restoredId = item.answer_id ?? `failed-${item.query_id}`;
+    if (messages.some((m) => m.id === restoredId)) {
+      setTab("chat");
+      return;
+    }
+    try {
+      const detail = await apiFetch<QueryDetail>(`/api/v1/workspaces/${workspaceId}/queries/${item.query_id}`);
+      const plan = planRestore(detail);
+
+      setMessages((prev) => [
+        ...prev,
+        { id: `prompt-${detail.query_id}`, sender: "user", text: plan.prompt },
+        plan.answer
+          ? {
+              id: plan.recordId,
+              sender: "assistant",
+              answer: plan.answer,
+              verificationStatus: plan.verificationStatus,
+              executionMetadata: plan.executionMetadata,
+            }
+          : {
+              id: plan.recordId,
+              sender: "assistant",
+              text: `Pipeline Execution Interrupted: ${plan.errorText}`,
+            },
+      ]);
+      if (plan.execution) {
+        setHistory((prev) => [...prev.filter((r) => r.id !== plan.recordId), { id: plan.recordId, prompt: plan.prompt, state: plan.execution! }]);
+      }
+      setTab("chat");
+    } catch (err) {
+      notify.error("Could not reopen query", err, {
+        description: err instanceof Error ? err.message : "The stored query could not be loaded.",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-13rem)] min-h-[520px] max-h-[820px] rounded-2xl border border-purple-900/30 bg-[#100A1C]/75 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl">
       {/* View switcher: conversation or the LangGraph execution graph */}
@@ -241,6 +294,8 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           </button>
         </div>
 
+        <div className="flex min-w-0 items-center gap-2">
+          <HistoryMenu workspaceId={workspaceId} onSelect={openPreviousQuery} disabled={loading} />
         {tab === "execution" && hasHistory && (
           <label className="flex min-w-0 items-center gap-1.5 text-[11px] text-[#9E93B3]">
             <History className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -259,6 +314,7 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
             </select>
           </label>
         )}
+        </div>
       </div>
 
       {tab === "execution" ? (
@@ -282,7 +338,12 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
               )}
               <div className="max-w-2xl">
                 {msg.answer ? (
-                  <AnswerWithCitations answer={msg.answer} workspaceId={workspaceId} />
+                  <AnswerWithCitations
+                    answer={msg.answer}
+                    workspaceId={workspaceId}
+                    verificationStatus={msg.verificationStatus}
+                    executionMetadata={msg.executionMetadata}
+                  />
                 ) : (
                   <div
                     className={`rounded-2xl px-4 py-3 text-sm transition-all duration-200 ${

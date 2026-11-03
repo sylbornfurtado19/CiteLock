@@ -6,13 +6,22 @@ import { Answer } from "@/types";
 import { ShieldCheck, ArrowRight, Bookmark, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EvidenceDrawer, CitationItem } from "./EvidenceDrawer";
+import { AnswerMetricsPanel, EmptyAnswerNotice } from "./AnswerMetricsPanel";
+import { buildAnswerMetrics, isBlankAnswer } from "@/lib/answerMetrics";
 
 interface AnswerWithCitationsProps {
   workspaceId: string;
   answer: Answer;
+  /** From the pipeline_complete payload (or the stored query); falls back to values stored on the answer. */
+  verificationStatus?: string | null;
+  executionMetadata?: Record<string, any> | null;
 }
 
-export function AnswerWithCitations({ workspaceId, answer }: AnswerWithCitationsProps) {
+export function AnswerWithCitations({ workspaceId, answer, verificationStatus, executionMetadata }: AnswerWithCitationsProps) {
+  const metrics = useMemo(
+    () => buildAnswerMetrics(answer, { verificationStatus, executionMetadata }),
+    [answer, verificationStatus, executionMetadata]
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeCitationIndex, setActiveCitationIndex] = useState(0);
 
@@ -138,9 +147,13 @@ export function AnswerWithCitations({ workspaceId, answer }: AnswerWithCitations
         </div>
 
         {/* Answer text with inline clickable citations */}
-        <div className="text-sm leading-relaxed text-[#F5F0FF] whitespace-pre-wrap">
-          {renderFormattedTextWithCitations()}
-        </div>
+        {isBlankAnswer(answer.final_text) ? (
+          <EmptyAnswerNotice />
+        ) : (
+          <div className="text-sm leading-relaxed text-[#F5F0FF] whitespace-pre-wrap" data-testid="final-answer-text">
+            {renderFormattedTextWithCitations()}
+          </div>
+        )}
 
         {/* Interactive Source Citations Bar */}
         {citations.length > 0 && (
@@ -193,12 +206,8 @@ export function AnswerWithCitations({ workspaceId, answer }: AnswerWithCitations
           </div>
         )}
 
-        {/* Footer Metrics */}
-        <div className="flex items-center gap-3 pt-2 border-t border-purple-900/20 text-xs text-[#8D829F] font-mono">
-          <span>Correction passes: {answer.correction_rounds}</span>
-          <span>•</span>
-          <span>Claims evaluated: {answer.claims?.length || 0}</span>
-        </div>
+        {/* Verification summary: status, rates, claim breakdown, correction rounds and latency */}
+        <AnswerMetricsPanel metrics={metrics} />
       </div>
 
       {/* Right-Side Split-Pane / Slide-Over Evidence Drawer */}

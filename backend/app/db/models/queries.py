@@ -19,6 +19,10 @@ class Query(Base):
     prompt = Column(Text, nullable=False)
     query_parameters = Column(JSONB, default=dict)
     status = Column(String(50), default="processing", nullable=False)  # processing, completed, failed
+    # Recorded LangGraph node executions (start/finish, routing, payloads). Persisted for completed AND failed
+    # queries so any past execution graph can be restored exactly as it ran.
+    execution_trace = Column(JSONB, default=list, nullable=False)
+    error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (

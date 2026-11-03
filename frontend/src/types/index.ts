@@ -92,6 +92,9 @@ export interface Answer {
   correction_rounds: number;
   is_abstained: boolean;
   claims: Claim[];
+  correction_history?: CorrectionRound[];
+  verification_status?: string | null;
+  execution_metadata?: Record<string, any> | null;
   /** Persisted LangGraph node trace, used to restore the execution graph. */
   execution_trace?: TraceRecord[];
   created_at: string;
@@ -128,6 +131,34 @@ export interface AnswerAudit {
 }
 
 export type AnswerAuditResponse = AnswerAudit;
+
+/** One row of the previous-queries list. Failed runs have no answer. */
+export interface QueryHistoryItem {
+  query_id: string;
+  prompt: string;
+  status: "completed" | "failed" | "processing" | string;
+  created_at: string;
+  answer_id?: string | null;
+  verification_status?: string | null;
+  correction_rounds?: number | null;
+  claim_count?: number | null;
+  error_message?: string | null;
+  has_trace: boolean;
+}
+
+/** A past query with everything needed to restore its answer and execution graph. */
+export interface QueryDetail {
+  query_id: string;
+  workspace_id: string;
+  prompt: string;
+  status: string;
+  created_at: string;
+  error_message?: string | null;
+  execution_trace: TraceRecord[];
+  answer?: Answer | null;
+  verification_status?: string | null;
+  execution_metadata?: Record<string, any> | null;
+}
 
 export interface AuditListItem {
   answer_id: string;

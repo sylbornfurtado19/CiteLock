@@ -82,6 +82,31 @@ export class PipelineFailedError extends Error {
   }
 }
 
+/** Raised when the backend's completion event is not a usable answer (never rendered as an empty response). */
+export class InvalidResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidResponseError";
+  }
+}
+
+export function validateCompletePayload(payload: unknown): PipelineCompletePayload {
+  const p = payload as Partial<PipelineCompletePayload> | null;
+  const answer = p?.answer as Partial<PipelineCompletePayload["answer"]> | undefined;
+  if (
+    !p ||
+    typeof p !== "object" ||
+    !answer ||
+    typeof answer !== "object" ||
+    typeof answer.id !== "string" ||
+    typeof answer.final_text !== "string" ||
+    !Array.isArray(answer.claims)
+  ) {
+    throw new InvalidResponseError("The server returned an incomplete answer. Please try again.");
+  }
+  return p as PipelineCompletePayload;
+}
+
 export interface SSEHandlers {
   onPipelineEvent?: (event: PipelineEvent) => void;
   onGraphEvent?: (event: GraphEvent) => void;
@@ -125,7 +150,7 @@ export async function consumeSSEStream(
         handlers.onGraphEvent?.(parsed as GraphEvent);
         break;
       case "pipeline_complete":
-        finalPayload = parsed as PipelineCompletePayload;
+        finalPayload = validateCompletePayload(parsed);
         handlers.onComplete?.(finalPayload);
         break;
       case "pipeline_error": {
@@ -153,7 +178,7 @@ export async function consumeSSEStream(
       for (const frame of parser.feed("\n\n")) dispatch(frame);
     }
   } catch (err) {
-    if (err instanceof PipelineFailedError) throw err;
+    if (err instanceof PipelineFailedError || err instanceof InvalidResponseError) throw err;
     throw new StreamInterruptedError(
       err instanceof Error && err.message ? `Pipeline stream interrupted: ${err.message}` : "Pipeline stream interrupted.",
       err

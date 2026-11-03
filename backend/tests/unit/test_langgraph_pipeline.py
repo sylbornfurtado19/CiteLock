@@ -146,8 +146,9 @@ def test_graph_edges_encode_conditional_router_and_correction_loop():
     assert any(s == "self_correction" and t == "re_verification" for s, t, _ in edges)
     for target in ("self_correction", "final_answer_generation", "abstention", "error_handler"):
         assert ("re_verification", target, True) in edges
-    # Persistence is last
-    assert ("database_persistence", "__end__", False) in edges
+    # Persistence is last: it ends the run, or hands a failed commit to the error handler
+    assert ("database_persistence", "__end__", True) in edges
+    assert ("database_persistence", "error_handler", True) in edges
 
 
 def test_run_pipeline_executes_through_the_langgraph_invoke(db, workspace_a, scenario, monkeypatch):
@@ -433,10 +434,11 @@ def test_sse_endpoint_streams_graph_events(client, workspace_a, scenario):
     assert '"node": "claim_verification"' in body
 
 
-def test_dump_frontend_fixtures(db, workspace_a, scenario):
-    """Regenerate the execution-graph fixtures the frontend tests replay (set CITELOCK_DUMP_FIXTURES=<dir>).
+def test_dump_frontend_fixtures(client, db, workspace_a, scenario):
+    """Regenerate the fixtures the frontend tests replay (set CITELOCK_DUMP_FIXTURES=<dir>).
 
-    The fixtures are recorded from real graph runs: the live `graph_event` stream plus the persisted trace.
+    Each fixture holds the raw SSE body exactly as the browser receives it from the streaming endpoint, plus the
+    history detail JSON for the same query, so frontend tests exercise real backend output end to end.
     """
     import json
     import os
@@ -446,19 +448,20 @@ def test_dump_frontend_fixtures(db, workspace_a, scenario):
         pytest.skip("Set CITELOCK_DUMP_FIXTURES to regenerate frontend fixtures.")
     os.makedirs(out_dir, exist_ok=True)
 
-    def record(name, setup, expect_error=None, **policy):
+    def record(name, setup, **policy):
         scenario.calls.update({"verify": 0, "revise": 0, "decompose": 0})
         setup()
         set_workspace_policy(db, workspace_a, **policy)
-        events = []
-        trace = []
-        try:
-            result = run(db, workspace_a, prompt=f"fixture {name}", on_event=events.append)
-            trace = db.query(Answer).filter(Answer.id == result["answer_id"]).one().execution_trace
-        except Exception as exc:  # noqa: BLE001 - failure scenarios are recorded on purpose
-            assert expect_error and isinstance(exc, expect_error)
+        res = client.post(
+            f"/api/v1/workspaces/{workspace_a.id}/queries/stream",
+            json={"prompt": f"fixture {name}", "top_k": 3},
+        )
+        assert res.status_code == 200
+        history = client.get(f"/api/v1/workspaces/{workspace_a.id}/queries").json()
+        item = next(h for h in history if h["prompt"] == f"fixture {name}")
+        detail = client.get(f"/api/v1/workspaces/{workspace_a.id}/queries/{item['query_id']}").json()
         with open(os.path.join(out_dir, f"{name}.json"), "w", encoding="utf-8") as fh:
-            json.dump({"scenario": name, "events": graph_events(events), "trace": trace}, fh, indent=2)
+            json.dump({"scenario": name, "sse": res.text, "detail": detail, "history_item": item}, fh, indent=2)
 
     def verified():
         scenario.verify_results = [verification(claim("Titan uses mTLS.", "supported"))]
@@ -481,8 +484,7 @@ def test_dump_frontend_fixtures(db, workspace_a, scenario):
     record("verified", verified)
     record("corrected", corrected, max_correction_retries=3)
     record("abstained", abstained, max_correction_retries=2, abstention_policy="strict")
-    record("failed", failed, expect_error=VerificationProviderError)
-
+    record("failed", failed)
 
 # ---------------------------------------------------------------------------
 # Correction loops
@@ -742,8 +744,13 @@ def test_persistence_failure_rolls_back_and_raises(db, workspace_a, scenario, mo
     with pytest.raises(RuntimeError, match="audit ledger unavailable"):
         run(db, workspace_a)
 
+    # Nothing from the failed commit survives; only a failed query row remains so the history shows the run.
     assert answer_count(db, workspace_a) == 0
-    assert db.query(Query).filter(Query.workspace_id == workspace_a.id).count() == 0
+    assert db.query(Query).filter(Query.workspace_id == workspace_a.id, Query.status == "completed").count() == 0
+    failed = failed_queries(db, workspace_a)
+    assert len(failed) == 1 and "audit ledger unavailable" in failed[0].error_message
+    assert failed[0].execution_trace[-1]["node"] == "error_handler"
+    assert [t["node"] for t in failed[0].execution_trace if t["status"] == "failed"] == ["database_persistence", "error_handler"]
 
 
 # ---------------------------------------------------------------------------

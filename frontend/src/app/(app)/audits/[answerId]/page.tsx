@@ -4,6 +4,9 @@ import React, { useMemo, useState } from "react";
 import { ExecutionPanel } from "@/components/execution/ExecutionPanel";
 import { restoreFromTrace } from "@/lib/execution/reducer";
 import type { TraceRecord } from "@/types/execution";
+import type { AnswerAudit } from "@/types";
+import { AnswerMetricsPanel, EmptyAnswerNotice } from "@/components/chat/AnswerMetricsPanel";
+import { buildAnswerMetrics, isBlankAnswer } from "@/lib/answerMetrics";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Download, AlertCircle, Loader2 } from "lucide-react";
@@ -15,6 +18,40 @@ import { useWorkspace } from "@/lib/workspace";
 import { Skeleton, SkeletonText, SkeletonCard, SkeletonClaimCard } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { useWorkspaceAuditDetail } from "@/lib/query";
+
+function AuditFinalAnswer({ audit }: { audit: AnswerAudit }) {
+  const metrics = useMemo(
+    () =>
+      buildAnswerMetrics(
+        {
+          id: audit.answer_id,
+          query_id: audit.query_id,
+          draft_text: audit.draft_text,
+          final_text: audit.final_text,
+          correction_rounds: audit.correction_rounds,
+          is_abstained: audit.is_abstained,
+          claims: audit.claims,
+          created_at: audit.created_at,
+        },
+        { verificationStatus: audit.verification_status, executionMetadata: audit.execution_metadata }
+      ),
+    [audit]
+  );
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-purple-500/30 bg-[#120B22]/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+      <span className="block font-mono text-xs font-medium uppercase tracking-wider text-purple-400">Final answer</span>
+      {isBlankAnswer(audit.final_text) ? (
+        <EmptyAnswerNotice />
+      ) : (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#F5F0FF]" data-testid="final-answer-text">
+          {audit.final_text}
+        </p>
+      )}
+      <AnswerMetricsPanel metrics={metrics} />
+    </div>
+  );
+}
 
 function PersistedExecution({ trace, workspaceId }: { trace?: TraceRecord[]; workspaceId: string }) {
   const state = useMemo(() => (trace?.length ? restoreFromTrace(trace) : null), [trace]);
@@ -213,6 +250,9 @@ export default function AuditDetailPage() {
         </span>
         <p className="text-sm font-medium text-[#F5F0FF] leading-relaxed">{auditData.prompt}</p>
       </div>
+
+      {/* Final answer with its verification summary, as stored */}
+      <AuditFinalAnswer audit={auditData} />
 
       {/* LangGraph execution restored from the trace persisted with this answer */}
       <PersistedExecution trace={auditData.execution_trace} workspaceId={workspaceId} />

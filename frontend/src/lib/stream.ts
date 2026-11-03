@@ -1,10 +1,9 @@
 import { auth } from "./firebase/client";
 import { ApiError } from "./api";
+import { getApiBaseUrl } from "./config";
 import { consumeSSEStream, StreamInterruptedError } from "./sse";
 import type { GraphEvent } from "@/types/execution";
 import { PipelineEvent, PipelineCompletePayload } from "@/types/pipeline";
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 /** The backend sends an SSE heartbeat every 30s; three missed beats means the connection is dead. */
 export const STREAM_IDLE_TIMEOUT_MS = 90_000;
@@ -58,7 +57,15 @@ export async function streamPipelineQuery({
     }
   }
 
-  const endpoint = `${API_BASE_URL}/api/v1/workspaces/${encodeURIComponent(workspaceId)}/queries?stream=true`;
+  let endpoint: string;
+  try {
+    endpoint = `${getApiBaseUrl()}/api/v1/workspaces/${encodeURIComponent(workspaceId)}/queries?stream=true`;
+  } catch (err) {
+    // A misconfigured deployment (missing or localhost backend URL) fails loudly instead of calling localhost.
+    const error = err instanceof Error ? err : new Error(String(err));
+    onError?.(error);
+    throw error;
+  }
 
   // Internal controller so an idle watchdog can abort a silently dead connection.
   const controller = new AbortController();

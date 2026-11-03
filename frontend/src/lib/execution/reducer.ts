@@ -18,6 +18,8 @@ import { NODE_IDS, STATIC_EDGE_BY_ID, ROUTE_TARGETS, dynamicErrorEdge, edgeId } 
 
 export type ExecutionAction =
   | { type: "reset" }
+  /** The request was sent and the stream is open; no node has reported yet. */
+  | { type: "stream_started"; at?: string }
   | { type: "graph_event"; event: GraphEvent }
   | { type: "stream_complete" }
   | { type: "stream_failed"; message: string }
@@ -39,6 +41,8 @@ export function createInitialState(): ExecutionState {
     dynamicEdges: [],
     correctionRound: 0,
     decisions: [],
+    lastSeq: 0,
+    duplicatesDropped: 0,
   };
 }
 
@@ -194,8 +198,18 @@ export function executionReducer(state: ExecutionState, action: ExecutionAction)
     case "reset":
       return createInitialState();
 
-    case "graph_event":
+    case "stream_started":
+      return state.runStatus === "idle" ? { ...state, runStatus: "running", startedAt: action.at ?? new Date().toISOString() } : state;
+
+    case "graph_event": {
+      const seq = action.event.seq;
+      if (seq !== undefined) {
+        // The backend numbers events 1..n per run, so anything at or below the high-water mark is a replay.
+        if (seq <= state.lastSeq) return { ...state, duplicatesDropped: state.duplicatesDropped + 1 };
+        return applyGraphEvent({ ...state, lastSeq: seq }, action.event);
+      }
       return applyGraphEvent(state, action.event);
+    }
 
     case "stream_complete": {
       const next = sweepPendingToSkipped(state);

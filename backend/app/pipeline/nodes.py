@@ -25,6 +25,8 @@ from app.db.models.queries import Query
 from app.db.models.verification_runs import VerificationRun
 from app.db.models.workspaces import Workspace
 from app.pipeline.state import (
+    PipelineCancelledError,
+    PipelineTimeoutError,
     HARD_MAX_CORRECTION_ROUNDS,
     ROUTE_ABSTAIN,
     ROUTE_CORRECT,
@@ -74,6 +76,10 @@ def _emit(config: RunnableConfig, stage: str, status: str, message: str, data: O
 
 def _classify_error(exc: BaseException) -> str:
     """Map an exception to a coarse error kind used for routing and failed-query bookkeeping."""
+    if isinstance(exc, PipelineTimeoutError):
+        return "timeout"
+    if isinstance(exc, PipelineCancelledError):
+        return "cancelled"
     if isinstance(exc, VerificationProviderError):
         return "verification"
     if isinstance(exc, providers_base.ProviderError):
@@ -108,6 +114,17 @@ ROUTE_TARGETS = {
     ROUTE_ERROR: "error_handler",
 }
 _METRIC_KEYS = ("hallucination_rate", "grounding_rate", "total_claims", "verdict_distribution")
+
+# Inspection payloads list at most this many claims; the real total is always reported alongside.
+MAX_PAYLOAD_CLAIMS = 200
+
+
+def _capped_claims(claims: List[Dict[str, Any]], summarize: Callable[[Dict[str, Any]], Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "claims": [summarize(c) for c in claims[:MAX_PAYLOAD_CLAIMS]],
+        "claims_total": len(claims),
+        "claims_truncated": len(claims) > MAX_PAYLOAD_CLAIMS,
+    }
 
 
 def _now_iso() -> str:
@@ -176,6 +193,19 @@ def _emit_graph(config: RunnableConfig, event: Dict[str, Any]) -> None:
         logger.warning("Error invoking graph emit callback: %s", err)
 
 
+def _abort_reason(state: PipelineState, config: RunnableConfig) -> Optional[BaseException]:
+    """Return the reason to stop before running a node: the client left, or the time budget is spent."""
+    runtime = _runtime(config)
+    cancelled = runtime.get("cancelled")
+    if cancelled is not None and cancelled.is_set():
+        return PipelineCancelledError("The client disconnected; remaining pipeline work was abandoned.")
+    deadline = runtime.get("deadline")
+    if deadline is not None and time.time() > deadline:
+        budget = runtime.get("timeout_seconds")
+        return PipelineTimeoutError(f"The pipeline exceeded its {budget:.0f}s time budget." if budget else "The pipeline timed out.")
+    return None
+
+
 def _node_payload(name: str, before: PipelineState, after: Dict[str, Any]) -> Dict[str, Any]:
     """Build the sanitized inspection payload for a node from state it actually produced."""
     claims = after.get("claims") or []
@@ -211,14 +241,14 @@ def _node_payload(name: str, before: PipelineState, after: Dict[str, Any]) -> Di
         raw = after.get("raw_claims") or []
         return {
             "claim_count": len(raw),
-            "claims": [
-                {"index": c.get("claim_index", i), "text": c.get("claim_text"), "category": c.get("category")}
-                for i, c in enumerate(raw)
-            ],
+            **_capped_claims(
+                [{**c, "claim_index": c.get("claim_index", i)} for i, c in enumerate(raw)],
+                lambda c: {"index": c.get("claim_index"), "text": c.get("claim_text"), "category": c.get("category")},
+            ),
         }
     if name == "claim_verification":
         return {
-            "claims": [_claim_summary(c) for c in claims],
+            **_capped_claims(claims, _claim_summary),
             "metrics": _metrics_subset(after.get("metrics") or (after.get("initial_verification") or {}).get("metrics")),
             "verification_errors": sum(1 for c in claims if c.get("verdict") == "verification_error"),
         }
@@ -249,7 +279,7 @@ def _node_payload(name: str, before: PipelineState, after: Dict[str, Any]) -> Di
             "failed_after": len(select_failed_claims(claims)),
             "metrics_before": _metrics_subset(before.get("metrics")),
             "metrics_after": _metrics_subset(after.get("metrics")),
-            "claims": [_claim_summary(c) for c in claims],
+            **_capped_claims(claims, _claim_summary),
             "route": after.get("route"),
             "reason": after.get("route_reason"),
         }
@@ -292,7 +322,8 @@ def traced(name: str):
                 "round": state.get("correction_round", 0),
             })
 
-            update = fn(state, config)
+            abort = None if name == "error_handler" else _abort_reason(state, config)
+            update = _failure(name, abort) if abort is not None else fn(state, config)
 
             duration_ms = int((time.time() - started) * 1000)
             merged = {**state, **update}
@@ -725,6 +756,7 @@ def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[s
             prompt=prompt,
             query_parameters={"top_k": top_k},
             status="completed",
+            execution_trace=execution_trace,
         )
         db.add(query_record)
         db.flush()
@@ -742,7 +774,6 @@ def database_persistence(state: PipelineState, config: RunnableConfig) -> Dict[s
                 "correction_history": correction_history,
                 "verification_status": verification_status,
                 "execution_metadata": execution_metadata,
-                "execution_trace": execution_trace,
             },
         )
         db.add(answer_record)
@@ -908,7 +939,16 @@ def error_handler(state: PipelineState, config: RunnableConfig) -> Dict[str, Any
         _emit(config, "execution", "failed", f"Provider outage during pipeline execution: {error.get('message')}")
         logger.error("Provider outage during pipeline execution: %s", error.get("message"))
 
-    if kind in ("provider", "verification") and db is not None:
+    # A client that left is not a failure worth recording; every other failure keeps its trace for the history view.
+    if kind != "cancelled" and db is not None:
+        trace = _jsonable(list(state.get("node_events") or []) + [{
+            "node": "error_handler",
+            "status": "failed",
+            "from_node": _last_node(state),
+            "round": state.get("correction_round", 0),
+            "error": error,
+            "data": {"error": error},
+        }])
         try:
             db.add(Query(
                 id=uuid.uuid4(),
@@ -916,6 +956,8 @@ def error_handler(state: PipelineState, config: RunnableConfig) -> Dict[str, Any
                 prompt=state.get("prompt", ""),
                 query_parameters={"top_k": state.get("top_k", 5), "error_summary": str(error.get("message", ""))[:500]},
                 status="failed",
+                execution_trace=trace,
+                error_message=str(error.get("message", ""))[:2000],
             ))
             db.commit()
         except Exception as db_err:

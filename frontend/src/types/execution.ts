@@ -36,6 +36,8 @@ export interface GraphEventBase {
   node: GraphNodeId;
   timestamp: string;
   round?: number;
+  /** Per-run, strictly increasing sequence number assigned by the backend; used to drop duplicates. */
+  seq?: number;
 }
 
 export interface NodeStartEvent extends GraphEventBase {
@@ -138,6 +140,10 @@ export interface ExecutionState {
   dynamicEdges: GraphEdgeDef[];
   correctionRound: number;
   decisions: RouteDecisionEvent[];
+  /** Highest backend event sequence number applied; events at or below it are duplicates. */
+  lastSeq: number;
+  /** Events dropped as duplicates, exposed so tests and diagnostics can see that dedupe happened. */
+  duplicatesDropped: number;
   startedAt?: string;
   endedAt?: string;
   error?: { message: string; nodeId?: GraphNodeId };

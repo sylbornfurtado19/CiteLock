@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { consumeSSEStream, PipelineFailedError, SSEParser, StreamInterruptedError } from "./sse";
-import verified from "./execution/__fixtures__/verified.json";
+import { chunkBytes, graphEvents, RUNS, completePayload } from "./execution/testFixtures";
 
 const encoder = new TextEncoder();
 
@@ -25,7 +25,7 @@ function readerOf(chunks: Array<string | Uint8Array>, opts: { failWith?: Error }
   return stream.getReader();
 }
 
-const COMPLETE = { query_id: "q1", workspace_id: "w1", prompt: "p", answer: { id: "a1" } };
+const COMPLETE = { query_id: "q1", workspace_id: "w1", prompt: "p", answer: { id: "a1", final_text: "An answer.", claims: [] } };
 
 describe("SSEParser", () => {
   it("returns nothing until a blank line terminates the frame", () => {
@@ -85,16 +85,14 @@ describe("consumeSSEStream", () => {
     expect(onComplete).toHaveBeenCalledWith(COMPLETE);
   });
 
-  it("reassembles frames split at arbitrary byte boundaries into the same events", async () => {
-    const body = (verified.events as unknown[]).map((e) => frame("graph_event", e)).join("") + frame("pipeline_complete", COMPLETE);
-    const bytes = encoder.encode(body);
-    const chunks: Uint8Array[] = [];
-    for (let i = 0; i < bytes.length; i += 7) chunks.push(bytes.slice(i, i + 7));
-
-    const received: unknown[] = [];
-    await consumeSSEStream(readerOf(chunks), { onGraphEvent: (e) => received.push(e) });
-
-    expect(received).toEqual(verified.events);
+  it("reassembles the real recorded stream, fragmented at arbitrary byte boundaries, into the same events", async () => {
+    const expected = graphEvents("corrected");
+    for (const seed of [1, 7, 42]) {
+      const received: unknown[] = [];
+      const result = await consumeSSEStream(readerOf(chunkBytes(RUNS.corrected.sse, seed)), { onGraphEvent: (e) => received.push(e) });
+      expect(received).toEqual(expected);
+      expect(result).toEqual(completePayload("corrected"));
+    }
   });
 
   it("does not corrupt multi-byte characters split across chunks", async () => {
