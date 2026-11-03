@@ -108,7 +108,7 @@ def extract_atomic_claims(draft_text: str) -> List[Dict[str, Any]]:
     if not cleaned_text:
         return []
 
-    llm = providers_base.get_llm_provider()
+    llm = providers_base.get_verifier_llm_provider()
 
     system_prompt = (
         "You are CiteLock's expert NLP claim decomposition engine.\n"

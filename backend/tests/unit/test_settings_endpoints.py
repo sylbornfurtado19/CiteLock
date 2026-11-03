@@ -27,7 +27,7 @@ def test_get_workspace_settings_defaults(client, workspace_a):
     assert "embedding_provider" in dep_info
     assert "embedding_dim" in dep_info
     assert "environment" in dep_info
-    assert dep_info["embedding_dim"] == 1536
+    assert dep_info["embedding_dim"] == get_settings().embedding_dim == 768
 
     # Security check: verify no secrets or credentials leaked
     raw_text = response.text.lower()

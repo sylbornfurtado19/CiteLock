@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Send, Bot, Network, MessageSquare, History } from "lucide-react";
+import { Send, Square, Bot, Network, MessageSquare, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnswerWithCitations } from "./AnswerWithCitations";
 import { PipelineProgressStepper } from "./PipelineProgressStepper";
@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/api";
 import type { ExecutionState } from "@/types/execution";
 import { PipelineEvent, PipelineStage } from "@/types/pipeline";
 import { streamPipelineQuery } from "@/lib/stream";
-import { StreamInterruptedError } from "@/lib/sse";
+import { QueryCancelledError, StreamInterruptedError } from "@/lib/sse";
 import { notify } from "@/components/ui/toast";
 import { queryKeys } from "@/lib/query";
 
@@ -159,6 +159,15 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
         queryClient.invalidateQueries({ queryKey: historyQueryKey(workspaceId) });
       }
     } catch (err: unknown) {
+      if (err instanceof QueryCancelledError) {
+        // The user pressed Stop: the backend abandons the run, so this is neither an error nor retry-worthy.
+        execution.onInterrupted("Stopped by you before the run finished.");
+        const stoppedId = `stopped-${Date.now()}`;
+        saveExecution(stoppedId, userPrompt);
+        setIsStreamFailed(false);
+        setMessages((prev) => [...prev, { id: stoppedId, sender: "assistant", text: "Query stopped." }]);
+        return;
+      }
       console.error("Pipeline streaming error:", err);
       setIsStreamFailed(true);
       const errorMessage =
@@ -197,6 +206,11 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
       setLoading(false);
       abortControllerRef.current = null;
     }
+  };
+
+  /** Stop a running query. Closing the stream tells the backend to abandon the remaining work. */
+  const stopQuery = () => {
+    abortControllerRef.current?.abort();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -412,14 +426,28 @@ export function ChatPanel({ workspaceId }: { workspaceId: string }) {
           disabled={loading}
           className="flex-1 rounded-xl border border-purple-900/40 bg-[#06020E] px-4 py-2.5 text-sm text-[#F5F0FF] placeholder-[#8D829F] focus:outline-none focus:border-purple-500/70 focus:ring-1 focus:ring-purple-500/30 transition-all duration-200"
         />
-        <Button
-          type="submit"
-          disabled={loading || !input.trim()}
-          size="sm"
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl shadow-[0_0_16px_rgba(147,51,234,0.35)] transition-all duration-200 active:scale-95"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        {loading ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={stopQuery}
+            aria-label="Stop the running query"
+            className="gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-[0_0_16px_rgba(244,63,94,0.35)] transition-all duration-200 active:scale-95"
+          >
+            <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+            Stop
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            disabled={!input.trim()}
+            size="sm"
+            aria-label="Send question"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl shadow-[0_0_16px_rgba(147,51,234,0.35)] transition-all duration-200 active:scale-95"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        )}
       </form>
     </div>
   );

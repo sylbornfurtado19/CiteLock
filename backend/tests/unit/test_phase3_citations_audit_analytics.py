@@ -391,7 +391,7 @@ def test_alembic_postgres_migration_upgrade_and_downgrade():
     # Test upgrade SQL generation
     proc_up = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "0002_create_tables:0003_evidence_links_integrity", "--sql"],
-        cwd="backend",
+        cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
         capture_output=True,
         text=True,
         env=env,
@@ -405,7 +405,7 @@ def test_alembic_postgres_migration_upgrade_and_downgrade():
     # Test downgrade SQL generation
     proc_down = subprocess.run(
         [sys.executable, "-m", "alembic", "downgrade", "0003_evidence_links_integrity:0002_create_tables", "--sql"],
-        cwd="backend",
+        cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
         capture_output=True,
         text=True,
         env=env,

@@ -277,6 +277,33 @@ def test_client_disconnect_cancels_remaining_work(db, workspace_a, mock_embeddin
     assert db.query(Query).filter(Query.workspace_id == workspace_a.id, Query.status == "failed").count() == 0
 
 
+def test_closing_the_stream_early_stops_the_pipeline_before_it_spends_more_model_calls(db, workspace_a, monkeypatch):
+    """What Starlette does when the browser disconnects (or the user presses Stop): it closes the SSE generator."""
+    import app.api.routes.queries as q
+
+    model_calls = []
+    release = threading.Event()
+
+    def slow_retrieval(*a, **k):
+        release.wait(2)  # the run is still on its first real step when the client leaves
+        return [{"id": str(uuid.uuid4()), "content": FACT, "filename": "t.txt"}]
+
+    monkeypatch.setattr(nodes, "retrieve_hybrid", slow_retrieval)
+    monkeypatch.setattr(nodes, "generate_draft_answer", lambda *a, **k: model_calls.append("draft") or "Draft.")
+
+    generator = q._generate_pipeline_sse(workspace_a.id, "stop me", 3)
+    first = next(generator)  # first SSE frame: the run has started
+    assert first.startswith("event:")
+    generator.close()  # client disconnect
+    release.set()
+    time.sleep(0.5)
+
+    assert model_calls == [], "no model call may start after the client has left"
+    assert db.query(Query).filter(Query.workspace_id == workspace_a.id, Query.status == "completed").count() == 0
+    assert db.query(Query).filter(Query.workspace_id == workspace_a.id, Query.status == "failed").count() == 0, \
+        "an abandoned run is not recorded as a failure"
+
+
 # ---------------------------------------------------------------------------
 # History: restore the answer, verification, corrections and graph from the database
 # ---------------------------------------------------------------------------

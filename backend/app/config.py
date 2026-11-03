@@ -27,10 +27,17 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = "gemini-embedding-001"
 
     groq_llm_model: str = "llama-3.3-70b-versatile"
+    # Optional lighter/faster model (same provider and key) for claim extraction and verification judging.
+    verifier_llm_model: Optional[str] = None
 
     max_correction_retries: int = 2
     # Overall wall-clock budget for one pipeline run, checked before each graph node starts.
     pipeline_timeout_seconds: float = 300.0
+    # Documents stuck in uploaded/processing longer than this are marked failed (so the UI offers Retry).
+    stale_document_minutes: int = 10
+    # Per-user query limits (0 disables a limit). Every query spends model-provider quota.
+    query_rate_limit_per_minute: int = 10
+    query_rate_limit_per_hour: int = 120
     max_verification_workers: int = 1
     http_connect_timeout: float = 5.0
     http_read_timeout: float = 60.0

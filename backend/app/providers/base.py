@@ -219,6 +219,22 @@ def get_llm_provider(provider_name: Optional[str] = None) -> LLMProvider:
     raise ValueError(f"Unknown LLM provider: {provider}")
 
 
+def get_verifier_llm_provider() -> LLMProvider:
+    """
+    LLM used for claim extraction and verification judging.
+
+    Those steps make many short calls, so a smaller, faster model is often better than the answer-writing model
+    (and stays inside free-tier rate limits). VERIFIER_LLM_MODEL overrides only the model name on the same
+    provider and key; unset, this is exactly get_llm_provider().
+    """
+    provider = get_llm_provider()
+    model = (get_settings().verifier_llm_model or "").strip()
+    if model and not isinstance(provider, MockLLMProvider) and hasattr(provider, "llm_model"):
+        provider.llm_model = model
+        provider._model_override = True
+    return provider
+
+
 def get_available_llm_providers() -> List[str]:
     """Return list of configured model providers that can be safely selected."""
     import os

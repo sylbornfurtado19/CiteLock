@@ -6,6 +6,8 @@ import uuid
 import pytest
 
 os.environ.setdefault("ENVIRONMENT", "test")
+# Keep tests (and the alembic subprocesses they spawn) off the network: never probe a local Postgres.
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("LLM_PROVIDER", "mock")
 os.environ.setdefault("EMBEDDING_PROVIDER", "mock")
 
@@ -42,6 +44,15 @@ def init_test_db():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
+
+
+@pytest.fixture(autouse=True)
+def reset_query_rate_limiter():
+    """Rate-limit counters are process-global; every test starts with a clean slate."""
+    from app.security.rate_limit import query_rate_limiter
+    query_rate_limiter.reset()
+    yield
+    query_rate_limiter.reset()
 
 
 @pytest.fixture(autouse=True)

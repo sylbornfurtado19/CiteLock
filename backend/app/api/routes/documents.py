@@ -1,5 +1,6 @@
 """Document ingestion endpoints handling multipart upload, signed URL access, status tracking, and deletion."""
 
+from datetime import timedelta
 from typing import List, Optional
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query, BackgroundTasks, status
@@ -15,6 +16,8 @@ from app.security.file_validation import validate_file_upload, compute_checksum,
 import app.providers.base as providers_base
 from app.providers.storage_base import StorageError
 from app.services.ingestion.indexer import index_document
+from app.services.ingestion.maintenance import fail_stale_documents
+from app.config import get_settings
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["Documents"])
 
@@ -92,6 +95,13 @@ def list_documents(
     db: Session = Depends(get_db),
 ):
     """List all documents indexed in the specified workspace with optional status filtering."""
+    # Documents whose indexing task was lost (for example a restart mid-upload) must not spin forever.
+    try:
+        fail_stale_documents(db, timedelta(minutes=get_settings().stale_document_minutes), workspace_id=workspace.id)
+    except Exception as sweep_err:
+        db.rollback()
+        logger.warning("Stale document sweep failed for workspace %s: %s", workspace.id, sweep_err)
+
     query = db.query(Document).filter(Document.workspace_id == workspace.id)
     if status_filter:
         query = query.filter(Document.status == status_filter)

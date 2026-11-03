@@ -74,6 +74,14 @@ export class StreamInterruptedError extends Error {
   }
 }
 
+/** Raised when the user stops a running query; not a failure, so no error toast or retry prompt. */
+export class QueryCancelledError extends Error {
+  constructor(message = "Query was cancelled.") {
+    super(message);
+    this.name = "QueryCancelledError";
+  }
+}
+
 /** Raised for a `pipeline_error` event sent by the backend (the pipeline itself failed). */
 export class PipelineFailedError extends Error {
   constructor(message: string, public readonly payload?: PipelineErrorPayload) {

@@ -198,10 +198,10 @@ def test_wrong_embedding_dimension_marks_document_failed(db, workspace_a, monkey
 
     class MismatchedDimProvider(EmbeddingProvider):
         def embed_text(self, text: str):
-            return [0.1] * 768  # Configured default is 1536
+            return [0.1] * 1536  # Configured default is 768
 
         def embed_batch(self, texts):
-            return [[0.1] * 768 for _ in texts]
+            return [[0.1] * 1536 for _ in texts]
 
     monkeypatch.setattr(providers_base, "get_embedding_provider", lambda: MismatchedDimProvider())
 
@@ -221,7 +221,7 @@ def test_wrong_embedding_dimension_marks_document_failed(db, workspace_a, monkey
 
     indexed_doc = index_document(db, doc.id, pdf_bytes)
     assert indexed_doc.status == "failed"
-    assert "Embedding dimension mismatch: expected 1536, got 768." in indexed_doc.error_message
+    assert "Embedding dimension mismatch: expected 768, got 1536." in indexed_doc.error_message
 
 
 def test_verify_returns_401_unauthenticated(monkeypatch):

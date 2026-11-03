@@ -11,7 +11,7 @@ vi.mock("./api", () => ({
 }));
 
 import { streamPipelineQuery, STREAM_IDLE_TIMEOUT_MS } from "./stream";
-import { StreamInterruptedError } from "./sse";
+import { QueryCancelledError, StreamInterruptedError } from "./sse";
 import { RUNS } from "./execution/testFixtures";
 
 /** A fetch whose body never produces data and rejects once its request is aborted (a silently dead connection). */
@@ -108,7 +108,10 @@ describe("streamPipelineQuery against a real recorded stream", () => {
     const pending = streamPipelineQuery({ workspaceId: "ws-1", prompt: "q", signal: controller.signal }).catch((e) => e);
     await new Promise((r) => setTimeout(r, 10));
     controller.abort();
-    expect((await pending).message).toMatch(/cancelled/i);
+    const error = await pending;
+    expect(error).toBeInstanceOf(QueryCancelledError);
+    expect(error.message).toMatch(/cancelled/i);
+    expect(error).not.toBeInstanceOf(StreamInterruptedError);
   });
 
   it("surfaces HTTP errors with the backend's detail message", async () => {

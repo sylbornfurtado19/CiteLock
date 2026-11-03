@@ -1,3 +1,4 @@
+import os
 """Unit tests for PostgreSQL full-text lexical search: ranking, workspace isolation, punctuation, and migration DDL."""
 
 import uuid
@@ -158,7 +159,7 @@ def test_alembic_0004_migration_sql_generation():
     # Test upgrade SQL generation
     proc_up = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "0003_evidence_links_integrity:0004_chunks_full_text_search", "--sql"],
-        cwd="backend",
+        cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
         capture_output=True,
         text=True,
         env=env,
@@ -171,7 +172,7 @@ def test_alembic_0004_migration_sql_generation():
     # Test downgrade SQL generation
     proc_down = subprocess.run(
         [sys.executable, "-m", "alembic", "downgrade", "0004_chunks_full_text_search:0003_evidence_links_integrity", "--sql"],
-        cwd="backend",
+        cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
         capture_output=True,
         text=True,
         env=env,

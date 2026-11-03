@@ -1,7 +1,7 @@
 import { auth } from "./firebase/client";
 import { ApiError } from "./api";
 import { getApiBaseUrl } from "./config";
-import { consumeSSEStream, StreamInterruptedError } from "./sse";
+import { consumeSSEStream, QueryCancelledError, StreamInterruptedError } from "./sse";
 import type { GraphEvent } from "@/types/execution";
 import { PipelineEvent, PipelineCompletePayload } from "@/types/pipeline";
 
@@ -103,7 +103,7 @@ export async function streamPipelineQuery({
   } catch (err: unknown) {
     cleanup();
     if (signal?.aborted) {
-      throw new Error("Query was cancelled by user.");
+      throw new QueryCancelledError("Query was cancelled by user.");
     }
     return fail(err instanceof Error ? err : new Error(String(err)));
   }
@@ -117,7 +117,9 @@ export async function streamPipelineQuery({
     } catch {
       // Ignore JSON parse failure
     }
-    return fail(new ApiError(response.status, `Pipeline Error ${response.status}: ${errorDetail}`));
+    // A rate limit is an instruction to wait, not a pipeline fault, so show the backend's message as is.
+    const message = response.status === 429 ? errorDetail : `Pipeline Error ${response.status}: ${errorDetail}`;
+    return fail(new ApiError(response.status, message));
   }
 
   // Handle non-streaming fallback if backend responded with regular JSON
@@ -145,7 +147,7 @@ export async function streamPipelineQuery({
     });
   } catch (err: unknown) {
     if (signal?.aborted) {
-      throw new Error("Query was cancelled.");
+      throw new QueryCancelledError("Query was cancelled.");
     }
     if (idleTimedOut) {
       return fail(

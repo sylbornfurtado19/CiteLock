@@ -23,6 +23,9 @@ be confirmed on the live platforms are listed under "Verify after deploying".
 | `GEMINI_LLM_MODEL` | if Gemini | A currently available model; Google retires models, check the model list |
 | `GROQ_LLM_MODEL` | no | Groq auto-selects a model if the configured one is gone |
 | `CORS_ORIGINS` | yes | Comma-separated frontend origins, e.g. `https://your-app.vercel.app` |
+| `VERIFIER_LLM_MODEL` | no | Lighter model on the same provider/key for claim extraction and judging (for example a Groq `8b` model). Unset = one model for everything |
+| `QUERY_RATE_LIMIT_PER_MINUTE` / `QUERY_RATE_LIMIT_PER_HOUR` | no | Per-user query limits, default 10 and 120; `0` disables. In-memory, so it is exact for a single instance only |
+| `STALE_DOCUMENT_MINUTES` | no | Default 10; stuck `uploaded`/`processing` documents older than this are marked failed so Retry appears |
 | `MAX_CORRECTION_RETRIES` | no | Default 2; capped at 10 in code |
 | `PIPELINE_TIMEOUT_SECONDS` | no | Default 300; run budget checked before each graph node |
 | `MAX_VERIFICATION_WORKERS` | no | Default 1; raise only with a paid LLM tier |

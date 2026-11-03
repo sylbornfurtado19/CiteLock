@@ -70,7 +70,9 @@ class GroqProvider(OpenAIProvider):
 
         chosen = sorted(chat_ids, key=lambda i: (rank(i), i))[0]
         logger.warning("Groq model '%s' unavailable; auto-selected '%s'", self.llm_model, chosen)
-        GroqProvider._resolved_model = chosen
+        if not getattr(self, "_model_override", False):
+            # Only the main model's fallback is shared; a verifier override must not change the main model.
+            GroqProvider._resolved_model = chosen
         self.llm_model = chosen
         return chosen
 

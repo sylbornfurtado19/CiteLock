@@ -23,6 +23,21 @@ async def lifespan(app: FastAPI):
         import logging
         logging.getLogger("uvicorn.error").warning("Schema initialization notice: %s", e)
 
+    # Documents whose indexing task died with the previous process should show as failed, not spin forever.
+    try:
+        from datetime import timedelta
+        import app.db.session as db_session
+        from app.services.ingestion.maintenance import fail_stale_documents
+
+        sweep_db = db_session.SessionLocal()
+        try:
+            fail_stale_documents(sweep_db, timedelta(minutes=settings.stale_document_minutes))
+        finally:
+            sweep_db.close()
+    except Exception as e:
+        import logging
+        logging.getLogger("uvicorn.error").warning("Stale document sweep skipped: %s", e)
+
     yield
     # Cleanly close all persistent HTTP connection pools
     close_http_clients()

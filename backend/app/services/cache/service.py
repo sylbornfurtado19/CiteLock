@@ -293,7 +293,11 @@ def compute_pipeline_cache_key(
     cfg_data = {
         "top_k": top_k,
         "llm_provider": settings.llm_provider,
-        "llm_model": settings.openai_llm_model if settings.llm_provider == "openai" else settings.gemini_llm_model,
+        "llm_model": {
+            "openai": settings.openai_llm_model,
+            "groq": settings.groq_llm_model,
+        }.get(settings.llm_provider, settings.gemini_llm_model),
+        "verifier_llm_model": settings.verifier_llm_model,
         "embedding_provider": settings.embedding_provider,
         "embedding_model": settings.openai_embedding_model if settings.embedding_provider == "openai" else settings.gemini_embedding_model,
         "max_retries": settings.max_correction_retries,

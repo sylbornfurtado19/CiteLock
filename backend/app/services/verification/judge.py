@@ -38,7 +38,7 @@ def evaluate_claim_with_judge(claim_text: str, evidence_passages: List[str]) -> 
         }
 
     try:
-        llm = providers_base.get_llm_provider()
+        llm = providers_base.get_verifier_llm_provider()
         res = llm.structured_judge(claim_text, cleaned_passages)
         if not isinstance(res, dict):
             return {

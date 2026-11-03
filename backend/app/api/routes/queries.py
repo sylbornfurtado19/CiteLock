@@ -21,6 +21,7 @@ from app.pipeline.state import PipelineCancelledError, PipelineTimeoutError
 from app.services.cache import pipeline_cache_service
 from app.services.generation.answer import GenerationError
 from app.security.injection_guard import check_prompt_injection
+from app.security.rate_limit import enforce_query_rate_limit
 from app.services.verification.judge import VerificationProviderError
 from app.providers.base import ProviderError
 
@@ -134,7 +135,12 @@ def _generate_pipeline_sse(workspace_id, prompt: str, top_k: int):
         cancelled.set()
 
 
-@router.post("", response_model=QueryResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=QueryResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_query_rate_limit)],
+)
 def execute_query(
     payload: QueryCreate,
     stream: bool = QueryParam(default=False),
@@ -291,7 +297,7 @@ def get_query_detail(
     )
 
 
-@router.post("/stream")
+@router.post("/stream", dependencies=[Depends(enforce_query_rate_limit)])
 def execute_query_stream(
     payload: QueryCreate,
     request: Request,
