@@ -2,6 +2,17 @@ import { auth } from "./firebase/client";
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
+/** How many times a rate-limited read (GET) is retried before the error is shown. */
+export const RATE_LIMIT_RETRIES = 2;
+const MAX_RETRY_DELAY_MS = 5000;
+
+/** Wait before retrying a rate-limited request: the server's Retry-After if given, else 1s, 2s, 4s (capped). */
+export function retryDelayMs(retryAfterHeader: string | null, attempt: number): number {
+  const seconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+  const requested = Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 1000 * 2 ** attempt;
+  return Math.min(requested, MAX_RETRY_DELAY_MS);
+}
+
 /**
  * Custom error wrapper for CiteLock API HTTP responses.
  */
@@ -90,27 +101,38 @@ export async function apiFetch<T>(
   }
 
   const targetUrl = resolveApiUrl(endpoint);
+  const isRead = (options.method || "GET").toUpperCase() === "GET";
   let response: Response;
 
-  try {
-    response = await fetch(targetUrl, {
-      ...options,
-      headers,
-    });
-  } catch (err: unknown) {
-    if (err instanceof ApiError) {
-      throw err;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await fetch(targetUrl, {
+        ...options,
+        headers,
+      });
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      if (
+        rawMsg === "Load failed" ||
+        rawMsg === "Failed to fetch" ||
+        rawMsg.includes("NetworkError") ||
+        rawMsg.includes("network")
+      ) {
+        throw new ApiError(0, formatConnectionError(targetUrl));
+      }
+      throw new ApiError(0, `Network request failed: ${rawMsg}`);
     }
-    const rawMsg = err instanceof Error ? err.message : String(err);
-    if (
-      rawMsg === "Load failed" ||
-      rawMsg === "Failed to fetch" ||
-      rawMsg.includes("NetworkError") ||
-      rawMsg.includes("network")
-    ) {
-      throw new ApiError(0, formatConnectionError(targetUrl));
+
+    // A rate limit says "slow down", so reads wait and try again a couple of times. Writes are never repeated
+    // automatically, because repeating a create could duplicate it.
+    if (response.status === 429 && isRead && attempt < RATE_LIMIT_RETRIES) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response.headers.get("Retry-After"), attempt)));
+      continue;
     }
-    throw new ApiError(0, `Network request failed: ${rawMsg}`);
+    break;
   }
 
   if (!response.ok) {
@@ -124,6 +146,10 @@ export async function apiFetch<T>(
       errorDetail = errorJson.detail || JSON.stringify(errorJson);
     } catch {
       // Ignore JSON parse failure
+    }
+    if (response.status === 429) {
+      // Rate limits often come from the hosting edge with an empty body; never show a bare "API Error 429:".
+      throw new ApiError(response.status, errorDetail || "Too many requests. Please wait a moment and try again.");
     }
     throw new ApiError(response.status, `API Error ${response.status}: ${errorDetail}`);
   }
