@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 # Non-chat models served by Groq that must never be picked for text generation.
 _EXCLUDED_MODEL_MARKERS = ("whisper", "guard", "tts", "playai", "embed", "orpheus", "safeguard")
 # Substrings ranked by preference when auto-selecting a chat model.
+_MAX_TIMEOUT_RETRIES = 2
+_TIMEOUT_BACKOFF_SECONDS = 3.0
+# Reasoning models on Groq can take longer than the default 60s per call.
+_MIN_READ_TIMEOUT_SECONDS = 120.0
 _MAX_RATE_LIMIT_RETRIES = 4
 _RATE_LIMIT_BACKOFF_SECONDS = 10.0
 _PREFERRED_MODEL_MARKERS =("versatile", "70b", "120b", "llama", "gpt-oss", "qwen")
@@ -23,6 +27,7 @@ _PREFERRED_MODEL_MARKERS =("versatile", "70b", "120b", "llama", "gpt-oss", "qwen
 class GroqProvider(OpenAIProvider):
     """Groq integration reusing the OpenAI chat-completions adapter against Groq's compatible endpoint."""
 
+    label = "Groq"
     _resolved_model: Optional[str] = None
 
     def __init__(self, client: Optional[httpx.Client] = None):
@@ -32,7 +37,7 @@ class GroqProvider(OpenAIProvider):
         self.llm_model = GroqProvider._resolved_model or settings.groq_llm_model
         self.embedding_model = ""
         self.base_url = "https://api.groq.com/openai/v1"
-        self._client = client or get_http_client("groq")
+        self._client = client or get_http_client("groq", read_timeout=max(settings.http_read_timeout, _MIN_READ_TIMEOUT_SECONDS))
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         raise ProviderError("Groq does not provide embeddings; set EMBEDDING_PROVIDER to gemini or openai.")
@@ -77,7 +82,9 @@ class GroqProvider(OpenAIProvider):
     def _call_with_recovery(self, fn):
         """Run a provider call, retrying on rate limits and re-selecting the model if it is missing."""
         model_reselected = False
-        for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+        rate_limit_retries = 0
+        timeout_retries = 0
+        while True:
             try:
                 return fn()
             except ProviderError as e:
@@ -85,12 +92,23 @@ class GroqProvider(OpenAIProvider):
                     model_reselected = True
                     self._pick_available_model()
                     continue
-                if "HTTP 429" in str(e) and attempt < _MAX_RATE_LIMIT_RETRIES:
-                    delay = _RATE_LIMIT_BACKOFF_SECONDS * (attempt + 1)
+                if "HTTP 429" in str(e) and rate_limit_retries < _MAX_RATE_LIMIT_RETRIES:
+                    rate_limit_retries += 1
+                    delay = _RATE_LIMIT_BACKOFF_SECONDS * rate_limit_retries
                     logger.warning("Groq rate limited; retrying in %.0fs", delay)
                     time.sleep(delay)
                     continue
+                if self._is_timeout(e) and timeout_retries < _MAX_TIMEOUT_RETRIES:
+                    timeout_retries += 1
+                    logger.warning("Groq request timed out; retry %d of %d", timeout_retries, _MAX_TIMEOUT_RETRIES)
+                    time.sleep(_TIMEOUT_BACKOFF_SECONDS)
+                    continue
                 raise
+
+    @staticmethod
+    def _is_timeout(error: ProviderError) -> bool:
+        text = str(error).lower()
+        return "timed out" in text or "timeout" in text
 
     def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
         return self._call_with_recovery(

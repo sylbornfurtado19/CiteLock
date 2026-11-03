@@ -12,6 +12,9 @@ from app.providers.http_client import get_http_client
 class OpenAIProvider(LLMProvider, EmbeddingProvider):
     """OpenAI API integration reusing persistent connection pools for high-throughput inference."""
 
+    # Provider name used in error messages; OpenAI-compatible subclasses (Groq) override it.
+    label = "OpenAI"
+
     def __init__(self, client: Optional[httpx.Client] = None):
         settings = get_settings()
         self.api_key = settings.llm_api_key
@@ -29,7 +32,7 @@ class OpenAIProvider(LLMProvider, EmbeddingProvider):
     def complete(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.0) -> str:
         """Call OpenAI chat completions API reusing pooled HTTP connection."""
         if not self.api_key or "placeholder" in self.api_key.lower():
-            raise ProviderError("OpenAI LLM API key is missing or invalid.")
+            raise ProviderError(f"{self.label} LLM API key is missing or invalid.")
 
         messages = []
         if system_prompt:
@@ -47,18 +50,18 @@ class OpenAIProvider(LLMProvider, EmbeddingProvider):
                 },
             )
             if res.status_code != 200:
-                raise ProviderError(f"OpenAI completion returned HTTP {res.status_code}: {res.text[:200]}")
+                raise ProviderError(f"{self.label} completion returned HTTP {res.status_code}: {res.text[:200]}")
             data = res.json()
             return data["choices"][0]["message"]["content"].strip()
         except ProviderError:
             raise
         except Exception as e:
-            raise ProviderError(f"Failed to communicate with OpenAI chat completion API: {str(e)[:200]}")
+            raise ProviderError(f"Failed to communicate with {self.label} chat completion API: {str(e)[:200]}")
 
     def structured_judge(self, claim: str, evidence_passages: List[str]) -> Dict[str, Any]:
         """Perform structured claim verification using OpenAI chat completions with JSON mode via pooled HTTP client."""
         if not self.api_key or "placeholder" in self.api_key.lower():
-            raise ProviderError("OpenAI LLM API key is missing or invalid.")
+            raise ProviderError(f"{self.label} LLM API key is missing or invalid.")
 
         system_prompt = (
             "You are a rigorous factual verification judge. Evaluate the user's atomic claim strictly against the provided reference evidence.\n"
@@ -93,13 +96,13 @@ class OpenAIProvider(LLMProvider, EmbeddingProvider):
                 },
             )
             if res.status_code != 200:
-                raise ProviderError(f"OpenAI judge returned HTTP {res.status_code}: {res.text[:200]}")
+                raise ProviderError(f"{self.label} judge returned HTTP {res.status_code}: {res.text[:200]}")
             raw_json = res.json()["choices"][0]["message"]["content"]
             return json.loads(raw_json)
         except ProviderError:
             raise
         except Exception as e:
-            raise ProviderError(f"Failed to communicate with OpenAI judge API: {str(e)[:200]}")
+            raise ProviderError(f"Failed to communicate with {self.label} judge API: {str(e)[:200]}")
 
     def embed_text(self, text: str) -> List[float]:
         """Fetch vector embedding from configured OpenAI embedding model."""
